@@ -208,11 +208,35 @@ function App() {
   }
 
   if (screenState === 'winner') {
-    return <WinnerScreen reason={finishReason} onReturnToLobby={resetToLobby} />
+    return (
+      <GameScreen
+        sessionId={sessionId}
+        players={players}
+        isHost={isHost}
+        currentPlayerId={currentPlayerId}
+        boardState={boardState}
+        onPlaceCell={() => { }}
+        onLeave={leaveGame}
+        interactionEnabled={false}
+        overlay={<WinnerScreen reason={finishReason} onReturnToLobby={resetToLobby} />}
+      />
+    )
   }
 
   if (screenState === 'loser') {
-    return <LoserScreen reason={finishReason} onReturnToLobby={resetToLobby} />
+    return (
+      <GameScreen
+        sessionId={sessionId}
+        players={players}
+        isHost={isHost}
+        currentPlayerId={currentPlayerId}
+        boardState={boardState}
+        onPlaceCell={() => { }}
+        onLeave={leaveGame}
+        interactionEnabled={false}
+        overlay={<LoserScreen reason={finishReason} onReturnToLobby={resetToLobby} />}
+      />
+    )
   }
 
   if (screenState === 'waiting') {

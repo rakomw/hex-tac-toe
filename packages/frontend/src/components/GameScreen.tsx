@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BoardState } from '@ih3t/shared'
 
@@ -54,6 +55,8 @@ interface GameScreenProps {
   boardState: BoardState
   onPlaceCell: (x: number, y: number) => void
   onLeave: () => void
+  overlay?: ReactNode
+  interactionEnabled?: boolean
 }
 
 function getPlayerColor(playerId: string): string {
@@ -151,7 +154,9 @@ function GameScreen({
   currentPlayerId,
   boardState,
   onPlaceCell,
-  onLeave
+  onLeave,
+  overlay,
+  interactionEnabled = true
 }: GameScreenProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const dragStateRef = useRef<DragState | null>(null)
@@ -262,7 +267,7 @@ function GameScreen({
     context.clearRect(0, 0, width, height)
     context.fillStyle = '#0f172a'
     context.fillRect(0, 0, width, height)
-    if (!isOwnTurn) {
+    if (!interactionEnabled || !isOwnTurn) {
       context.fillStyle = 'rgba(15, 23, 42, 0.22)'
       context.fillRect(0, 0, width, height)
     }
@@ -404,8 +409,15 @@ function GameScreen({
     <div className="relative h-screen w-screen overflow-hidden bg-slate-950 text-white">
       <canvas
         ref={canvasRef}
-        className={`absolute inset-0 h-full w-full ${isOwnTurn ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed'}`}
+        className={`absolute inset-0 h-full w-full ${interactionEnabled
+          ? (isOwnTurn ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed')
+          : 'cursor-default'
+          }`}
         onMouseDown={(event) => {
+          if (!interactionEnabled) {
+            return
+          }
+
           dragStateRef.current = {
             startX: event.clientX,
             startY: event.clientY,
@@ -415,6 +427,10 @@ function GameScreen({
           }
         }}
         onMouseMove={(event) => {
+          if (!interactionEnabled) {
+            return
+          }
+
           const nextCell = screenToCell(event.clientX, event.clientY)
           if (!sameCell(hoveredCellRef.current, nextCell)) {
             hoveredCellRef.current = nextCell
@@ -440,6 +456,10 @@ function GameScreen({
           scheduleDraw()
         }}
         onMouseLeave={() => {
+          if (!interactionEnabled) {
+            return
+          }
+
           dragStateRef.current = null
           if (hoveredCellRef.current !== null) {
             hoveredCellRef.current = null
@@ -447,6 +467,10 @@ function GameScreen({
           }
         }}
         onMouseUp={(event) => {
+          if (!interactionEnabled) {
+            return
+          }
+
           const dragState = dragStateRef.current
           dragStateRef.current = null
 
@@ -465,6 +489,10 @@ function GameScreen({
           }
         }}
         onWheel={(event) => {
+          if (!interactionEnabled) {
+            return
+          }
+
           const canvas = canvasRef.current
           if (!canvas) return
 
@@ -487,7 +515,8 @@ function GameScreen({
 
       <div className="pointer-events-none absolute inset-0">
         <div className="flex h-full flex-col justify-between gap-4">
-          <div className="flex justify-center absolute top-3 left-0 right-0">
+          {interactionEnabled && (
+            <div className="flex justify-center absolute top-3 left-0 right-0">
             <div className="pointer-events-none shadow-xxl w-full max-w-md rounded-md bg-slate-800 px-4 py-3">
               <div className="flex items-center gap-3">
                 <span className={`h-2.5 w-2.5 rounded-full ${isOwnTurn ? 'bg-emerald-500' : 'bg-slate-400'}`} />
@@ -522,9 +551,11 @@ function GameScreen({
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          )}
 
-          <div className="pointer-events-auto flex flex-wrap bottom-2 right-2 absolute gap-2">
+          {interactionEnabled && (
+            <div className="pointer-events-auto flex flex-wrap bottom-2 right-2 absolute gap-2">
             <button
               onClick={() => {
                 viewRef.current = { offsetX: 0, offsetY: 0, scale: DEFAULT_SCALE }
@@ -540,9 +571,11 @@ function GameScreen({
             >
               Leave Game
             </button>
-          </div>
+            </div>
+          )}
 
-          <div className="pointer-events-auto w-full max-w-sm rounded-[1.5rem] bg-slate-950/28 px-4 py-4 text-right shadow-[0_12px_45px_rgba(15,23,42,0.22)] absolute top-0 right-0 backdrop-blur-md">
+          {interactionEnabled && (
+            <div className="pointer-events-auto w-full max-w-sm rounded-[1.5rem] bg-slate-950/28 px-4 py-4 text-right shadow-[0_12px_45px_rgba(15,23,42,0.22)] absolute bottom-16 right-2 backdrop-blur-md">
             <h1 className="mt-1 text-2xl font-bold">Infinite Hex Tik-Tak-Toe</h1>
             <div className="text-sm uppercase tracking-[0.25em] text-sky-300">Live Match</div>
             <div className="mt-4 space-y-3 text-sm">
@@ -575,9 +608,16 @@ function GameScreen({
                 <div className="mt-1 text-white">{Math.round((hudState.scale / DEFAULT_SCALE) * 100)}%</div>
               </div>
             </div>
-          </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {overlay && (
+        <div className="absolute inset-0">
+          {overlay}
+        </div>
+      )}
     </div>
   )
 }
