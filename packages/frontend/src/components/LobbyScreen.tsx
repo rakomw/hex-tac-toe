@@ -14,57 +14,93 @@ function LobbyScreen({
   onJoinGame
 }: LobbyScreenProps) {
   return (
-    <div className="w-screen h-screen bg-slate-600 flex flex-col items-center justify-center text-white font-sans">
-      <h1 className="mb-10 text-5xl text-center">Infinity Hexagonial<br />Tik-Tak-Toe</h1>
+    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.22),_transparent_30%),linear-gradient(135deg,_#111827,_#0f172a_45%,_#1e293b)] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-center px-6 py-10">
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch">
+          <section className="relative flex min-h-[34rem] overflow-hidden rounded-[2rem] border border-white/10 bg-white/6 p-8 shadow-[0_20px_80px_rgba(15,23,42,0.45)] backdrop-blur md:p-10">
+            <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-amber-300/20 blur-3xl" />
+            <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-sky-400/20 blur-3xl" />
 
-      <div className="text-center">
-        <div className="mb-7">
-          <button
-            onClick={onHostGame}
-            disabled={!isConnected}
-            className={`px-7 py-3.75 text-lg mr-5 border-none rounded cursor-pointer text-white ${isConnected
-              ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
-              : 'bg-gray-500 cursor-not-allowed'
-              }`}
-          >
-            Host Game
-          </button>
-        </div>
+            <div className="relative flex flex-1 flex-col justify-center">
+              <div className="self-start inline-flex rounded-full border border-amber-300/40 bg-amber-300/10 px-4 py-1 text-xs uppercase tracking-[0.35em] text-amber-100">
+                Two Players
+              </div>
+              <h1 className="mt-6 text-5xl font-black uppercase tracking-[0.08em] text-white sm:text-6xl">
+                Infinity
+                <br />
+                Hexagonial
+                <br />
+                Tik-Tak-Toe
+              </h1>
+              <p className="mt-6 max-w-xl text-base leading-7 text-slate-200 sm:text-lg">
+                Step into the lobby, open a fresh session, or jump into an available match on the shared infinite board.
+              </p>
 
-        <div>
-          <h3 className="mb-5">Available Games</h3>
-          {availableSessions.length === 0 ? (
-            <p>No games available. Host one above!</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {availableSessions.map((session) => (
-                <div
-                  key={session.id}
-                  className="bg-slate-700 p-3 rounded flex justify-between items-center min-w-75"
+              <div className="mt-8 flex flex-wrap gap-4">
+                <button
+                  onClick={onHostGame}
+                  disabled={!isConnected}
+                  className={`rounded-full px-7 py-3 text-base font-semibold uppercase tracking-[0.18em] transition ${isConnected
+                    ? 'bg-amber-300 text-slate-900 shadow-[0_10px_35px_rgba(251,191,36,0.35)] hover:-translate-y-0.5 hover:bg-amber-200'
+                    : 'cursor-not-allowed bg-slate-500/60 text-slate-200'
+                    }`}
                 >
-                  <div>
-                    <div>Game: <strong>{session.id}</strong></div>
-                    <div>Players: {session.playerCount}/2</div>
-                  </div>
-                  <button
-                    onClick={() => onJoinGame(session.id)}
-                    disabled={!isConnected}
-                    className={`px-4 py-2 border-none rounded text-white ${isConnected
-                      ? 'bg-blue-500 hover:bg-blue-600 cursor-pointer'
-                      : 'bg-gray-500 cursor-not-allowed'
-                      }`}
-                  >
-                    Join
-                  </button>
+                  Host Match
+                </button>
+                <div className={`inline-flex items-center rounded-full border px-4 py-3 text-sm font-medium ${isConnected
+                  ? 'border-emerald-300/40 bg-emerald-300/10 text-emerald-100'
+                  : 'border-rose-300/40 bg-rose-300/10 text-rose-100'
+                  }`}>
+                  {isConnected ? 'Client Connected' : 'Client Disconnected'}
                 </div>
-              ))}
+              </div>
             </div>
-          )}
-        </div>
+          </section>
 
-        <div className={`mt-10 p-5 rounded ${isConnected ? 'bg-green-500' : 'bg-red-500'
-          }`}>
-          Connection Status: {isConnected ? 'Connected' : 'Disconnected'}
+          <section className="min-h-[34rem] rounded-[2rem] border border-white/10 bg-slate-950/55 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.45)] backdrop-blur md:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm uppercase tracking-[0.3em] text-sky-200/80">Available Sessions</p>
+                <h2 className="mt-2 text-3xl font-bold text-white">Join a live lobby</h2>
+              </div>
+              <div className="rounded-2xl bg-white/5 px-4 py-3 text-right">
+                <div className="text-2xl font-bold text-white">{availableSessions.length}</div>
+                <div className="text-xs uppercase tracking-[0.2em] text-slate-300">Open Games</div>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              {availableSessions.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-white/15 bg-white/5 px-6 py-10 text-center text-slate-300">
+                  <p className="text-lg font-semibold text-white">No sessions are open right now.</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">Create a new match and the lobby list will update for everyone automatically.</p>
+                </div>
+              ) : (
+                availableSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/6 p-5 shadow-lg sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.28em] text-sky-200/75">Session</div>
+                      <div className="mt-2 text-2xl font-bold text-white">{session.id}</div>
+                      <div className="mt-2 text-sm text-slate-300">Players waiting: {session.playerCount}/2</div>
+                    </div>
+                    <button
+                      onClick={() => onJoinGame(session.id)}
+                      disabled={!isConnected}
+                      className={`rounded-full px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] transition ${isConnected
+                        ? 'bg-sky-400 text-slate-950 shadow-[0_10px_30px_rgba(56,189,248,0.28)] hover:-translate-y-0.5 hover:bg-sky-300'
+                        : 'cursor-not-allowed bg-slate-500/60 text-slate-200'
+                        }`}
+                    >
+                      Join Lobby
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
         </div>
       </div>
     </div>
