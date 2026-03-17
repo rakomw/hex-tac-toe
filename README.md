@@ -1,180 +1,30 @@
-# React + Vite + TypeScript Game App (Monorepo)
+# Infinity Hexagonial Tic-Tac-Toe
 
-A minimal React application with Vite, TypeScript, and a Node.js backend for hosting multiplayer game sessions. Organized as a pnpm workspace monorepo.
+Small monorepo for a real-time 2-player game inspired by the following YouTube video from webgoatguy:
+https://www.youtube.com/watch?v=Ob6QINTMIOA
 
-## Features
+Official website:
+https://hex-tic-tac-toe.did.science/
 
-- **2-Player Games Only**: All game sessions support exactly 2 players
-- **Game Lobby**: Choose to host a new game or join an existing one
-- **Available Games List**: See all open games waiting for a second player
-- **Real-time Multiplayer**: Socket.io-based game session management
-- **Full-page Canvas**: Responsive canvas that fills the entire viewport when in a game
-- **TypeScript**: Full type safety across frontend, backend, and shared modules
-- **Monorepo Structure**: Organized workspace with shared types and utilities
+## Stack
 
-## Tech Stack
+- React + Vite + TypeScript
+- Node.js + Express + Socket.io
+- pnpm workspace
 
-### Frontend (`packages/frontend`)
-- React 19
-- TypeScript
-- Vite
-- Socket.io Client
+## Development
 
-### Backend (`packages/backend`)
-- Node.js
-- Express
-- Socket.io
-- TypeScript
-
-### Shared (`packages/shared`)
-- TypeScript type definitions
-- Shared interfaces and types
-- Game session models
-
-## Project Structure
-
-```
-├── packages/
-│   ├── shared/           # Shared types and interfaces
-│   │   ├── src/
-│   │   │   └── index.ts  # Type definitions
-│   │   ├── dist/         # Built types
-│   │   └── package.json
-│   ├── backend/          # Game server
-│   │   ├── src/
-│   │   │   └── server.ts # Server implementation
-│   │   ├── dist/         # Built server
-│   │   └── package.json
-│   └── frontend/         # React app
-│       ├── src/          # React components
-│       ├── public/       # Static assets
-│       ├── dist/         # Built app
-│       └── package.json
-├── pnpm-workspace.yaml   # Workspace configuration
-└── package.json          # Root package.json
-```
-
-## Getting Started
-
-### Prerequisites
-- Node.js (v18 or higher)
-- pnpm
-
-### Installation
-
-1. Clone the repository and install dependencies:
 ```bash
 pnpm install
+pnpm dev:frontend
+pnpm dev:backend
 ```
 
-### Building Shared Types
+Frontend: `http://localhost:5173`  
+Backend: `http://localhost:3001`
 
-The shared types are automatically built when building dependent packages (backend/frontend). No manual build step required!
+## AI Use
+> This project was built mostly with AI-assisted "vibe coding" techniques.
 
-### Running the Application
-
-1. **Start the Backend Server** (in one terminal):
-```bash
-pnpm server
-```
-The server will run on `http://localhost:3001`
-
-2. **Start the Frontend Dev Server** (in another terminal):
-```bash
-pnpm dev
-```
-The frontend will run on `http://localhost:5173`
-
-### Production Build
-
-Build the frontend and backend together:
-
-```bash
-pnpm build
-pnpm start
-```
-
-In production, the backend serves the compiled frontend from the same container or host on `http://localhost:3001`.
-
-### Docker
-
-Build the image:
-
-```bash
-pnpm docker:build
-```
-
-Run it:
-
-```bash
-pnpm docker:run
-```
-
-If you want to load backend environment variables from [`packages/backend/.env`](/g:/git/web/ih3t/packages/backend/.env), use:
-
-```bash
-pnpm docker:run:env
-```
-
-### Game Session Management
-
-The app features a complete 2-player game lobby system:
-
-- **Host Game**: Create a new 2-player game session and wait for another player
-- **Join Game**: Browse and join available games that need a second player
-- **Waiting Room**: Shows session details and player count while waiting
-- **Game Canvas**: Only appears when both players have joined and the game starts
-- **Leave Game**: Players can leave at any time, returning to the lobby
-
-### Game Flow
-
-1. **Lobby**: Choose to host or join a game
-2. **Waiting**: Host waits for a player to join, or guest waits for game to start
-3. **Playing**: Full-screen canvas game when both players are connected
-4. **Return**: Leave game to return to lobby
-
-## API Endpoints
-
-- `GET /api/sessions` - List all active 2-player game sessions with join status
-- `POST /api/sessions` - Create a new 2-player game session
-
-## Socket Events
-
-### Client → Server
-- `join-session` - Join a game session
-- `leave-session` - Leave current session
-- `game-action` - Send game actions to other players
-
-### Server → Client
-- `player-joined` - A player joined the session
-- `player-left` - A player left the session
-- `game-action` - Receive game actions from other players
-
-## Development Scripts
-
-### Root Level Scripts
-- `pnpm build` - Build all packages (shared types built automatically)
-- `pnpm build:backend` - Build backend + shared types
-- `pnpm build:frontend` - Build frontend
-- `pnpm dev` - Start frontend dev server
-- `pnpm server` - Start backend server
-- `pnpm server:dev` - Start backend server with auto-reload
-- `pnpm start` - Start the built production backend, which also serves the built frontend
-- `pnpm docker:build` - Build the production container image
-- `pnpm docker:run` - Run the production container on port 3001
-- `pnpm docker:run:env` - Run the production container with variables from `packages/backend/.env`
-- `pnpm lint` - Lint all packages
-- `pnpm clean` - Clean all build artifacts
-- `pnpm type-check` - Type check all packages
-
-## Shared Types
-
-The `@ih3t/shared` package contains:
-
-- `GameSession` - Game session data structure
-- `Player` - Player information
-- `GameAction` - Game action payload
-- Socket.io event type definitions
-- API request/response types
-
-**Automatic Inclusion**: The shared types are automatically built and included when building dependent packages (backend/frontend) thanks to TypeScript project references. No manual build step required!
+Why?  
+I wanted to experiment with AI coding systems, especially GPT-based ones, and this project felt like a good fit. I already have a strong background in web development and in this tech stack, but using AI to build the initial prototype helped speed things up considerably.
