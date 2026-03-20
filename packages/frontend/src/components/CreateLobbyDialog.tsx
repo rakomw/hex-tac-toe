@@ -89,7 +89,7 @@ function CreateLobbyDialog({
   onCreateLobby
 }: Readonly<CreateLobbyDialogProps>) {
   const [visibility, setVisibility] = useState<LobbyVisibility>('public')
-  const [timeControlMode, setTimeControlMode] = useState<GameTimeControl['mode']>('unlimited')
+  const [timeControlMode, setTimeControlMode] = useState<GameTimeControl['mode']>('turn')
   const [turnTimeStepIndex, setTurnTimeStepIndex] = useState(TURN_TIME_STEP_SECONDS.indexOf(TURN_TIME_DEFAULT))
   const [matchTimeStepIndex, setMatchTimeStepIndex] = useState(MATCH_TIME_STEP_MINUTES.indexOf(MATCH_TIME_DEFAULT))
   const [incrementStepIndex, setIncrementStepIndex] = useState(INCREMENT_STEP_SECONDS.indexOf(INCREMENT_DEFAULT))
