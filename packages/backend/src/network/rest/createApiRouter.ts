@@ -2,6 +2,8 @@ import express from 'express';
 import { inject, injectable } from 'tsyringe';
 import { z } from 'zod';
 import {
+    type AccountProfile,
+    type AdminStatsResponse,
     type AccountResponse,
     DEFAULT_LOBBY_OPTIONS,
     type CreateSessionResponse,
@@ -9,6 +11,7 @@ import {
     zLobbyVisibility,
     zUpdateAccountProfileRequest,
 } from '@ih3t/shared';
+import { AdminStatsService } from '../../admin/adminStatsService';
 import { AuthRepository } from '../../auth/authRepository';
 import { AuthService } from '../../auth/authService';
 import { getRequestClientInfo } from '../clientInfo';
@@ -23,6 +26,12 @@ const zFinishedGamesQuery = z.object({
     pageSize: zPositiveIntegerQueryValue.optional(),
     baseTimestamp: zPositiveIntegerQueryValue.optional(),
     view: z.preprocess((value) => Array.isArray(value) ? value[0] : value, zFinishedGamesView).optional()
+});
+const zAdminStatsQuery = z.object({
+    tzOffsetMinutes: z.preprocess(
+        (value) => Array.isArray(value) ? value[0] : value,
+        z.coerce.number().int().min(-840).max(840)
+    ).optional()
 });
 const zGameTimeControlInput = z.union([
     z.object({
@@ -52,6 +61,7 @@ export class ApiRouter {
     constructor(
         @inject(AuthService) private readonly authService: AuthService,
         @inject(AuthRepository) private readonly authRepository: AuthRepository,
+        @inject(AdminStatsService) private readonly adminStatsService: AdminStatsService,
         @inject(SessionManager) private readonly sessionManager: SessionManager,
         @inject(GameHistoryRepository) private readonly gameHistoryRepository: GameHistoryRepository
     ) {
@@ -127,6 +137,17 @@ export class ApiRouter {
             res.json(game);
         });
 
+        router.get('/admin/stats', async (req, res) => {
+            const user = await this.requireAdminUser(req, res);
+            if (!user) {
+                return;
+            }
+
+            const query = zAdminStatsQuery.parse(req.query);
+            const response: AdminStatsResponse = await this.adminStatsService.getStats(new Date(), query.tzOffsetMinutes);
+            res.json(response);
+        });
+
         router.post('/sessions', express.json(), async (req, res) => {
             try {
                 const lobbyOptions = this.parseLobbyOptions(req.body);
@@ -163,5 +184,20 @@ export class ApiRouter {
 
     private parseUsername(body: unknown): string {
         return zUpdateAccountProfileRequest.parse(body ?? {}).username;
+    }
+
+    private async requireAdminUser(req: express.Request, res: express.Response): Promise<AccountProfile | null> {
+        const user = await this.authService.getCurrentUser(req);
+        if (!user) {
+            res.status(401).json({ error: 'Sign in as an admin to view this page.' });
+            return null;
+        }
+
+        if (user.role !== 'admin') {
+            res.status(403).json({ error: 'Admin access is required.' });
+            return null;
+        }
+
+        return user;
     }
 }

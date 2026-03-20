@@ -1,4 +1,4 @@
-import type { AccountResponse, FinishedGameRecord, FinishedGamesPage, SessionInfo } from '@ih3t/shared'
+import type { AccountResponse, AdminStatsResponse, FinishedGameRecord, FinishedGamesPage, SessionInfo } from '@ih3t/shared'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { fetchJson } from './apiClient'
 
@@ -7,6 +7,7 @@ export type FinishedGamesArchiveView = 'all' | 'mine'
 
 export const queryKeys = {
   account: ['account'] as const,
+  adminStats: (timezoneOffsetMinutes: number) => ['admin', 'stats', timezoneOffsetMinutes] as const,
   availableSessions: ['sessions', 'available'] as const,
   finishedGames: ['finished-games'] as const,
   finishedGamesPage: (view: FinishedGamesArchiveView, page: number, pageSize: number, baseTimestamp: number) =>
@@ -46,6 +47,10 @@ async function fetchAccount() {
   return await fetchJson<AccountResponse>('/api/account')
 }
 
+async function fetchAdminStats(timezoneOffsetMinutes: number) {
+  return await fetchJson<AdminStatsResponse>(`/api/admin/stats?tzOffsetMinutes=${timezoneOffsetMinutes}`)
+}
+
 async function fetchFinishedGames(
   page: number,
   pageSize: number,
@@ -80,6 +85,14 @@ export function useQueryAccount(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.account,
     queryFn: fetchAccount,
+    enabled: options?.enabled
+  })
+}
+
+export function useQueryAdminStats(timezoneOffsetMinutes: number, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.adminStats(timezoneOffsetMinutes),
+    queryFn: () => fetchAdminStats(timezoneOffsetMinutes),
     enabled: options?.enabled
   })
 }

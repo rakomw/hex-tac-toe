@@ -6,6 +6,9 @@ const zTimestamp = z.number().int();
 const zCoordinate = z.number().int();
 const zIdentifier = z.string();
 
+export const zUserRole = z.enum(['user', 'admin']);
+export type UserRole = z.infer<typeof zUserRole>;
+
 export const zSessionState = z.enum(['lobby', 'in-game', 'finished']);
 export type SessionState = z.infer<typeof zSessionState>;
 
@@ -302,7 +305,8 @@ export const zAccountProfile = z.object({
     id: zIdentifier,
     username: z.string(),
     email: z.string().nullable(),
-    image: z.string().nullable()
+    image: z.string().nullable(),
+    role: zUserRole
 });
 export type AccountProfile = z.infer<typeof zAccountProfile>;
 
@@ -310,6 +314,50 @@ export const zAccountResponse = z.object({
     user: zAccountProfile.nullable()
 });
 export type AccountResponse = z.infer<typeof zAccountResponse>;
+
+export const zAdminStatGameBase = z.object({
+    gameId: zIdentifier,
+    sessionId: zIdentifier,
+    players: z.array(z.string()),
+    finishedAt: zTimestamp
+});
+export type AdminStatGameBase = z.infer<typeof zAdminStatGameBase>;
+
+export const zAdminLongestGameInMoves = zAdminStatGameBase.extend({
+    moveCount: z.number().int().nonnegative()
+});
+export type AdminLongestGameInMoves = z.infer<typeof zAdminLongestGameInMoves>;
+
+export const zAdminLongestGameInDuration = zAdminStatGameBase.extend({
+    durationMs: z.number().int().nonnegative()
+});
+export type AdminLongestGameInDuration = z.infer<typeof zAdminLongestGameInDuration>;
+
+export const zAdminStatsWindow = z.object({
+    startAt: zTimestamp,
+    endAt: zTimestamp,
+    siteVisits: z.number().int().nonnegative(),
+    gamesPlayed: z.number().int().nonnegative(),
+    longestGameInMoves: zAdminLongestGameInMoves.nullable(),
+    longestGameInDuration: zAdminLongestGameInDuration.nullable()
+});
+export type AdminStatsWindow = z.infer<typeof zAdminStatsWindow>;
+
+export const zAdminStatsResponse = z.object({
+    generatedAt: zTimestamp,
+    activeGames: z.object({
+        total: z.number().int().nonnegative(),
+        public: z.number().int().nonnegative(),
+        private: z.number().int().nonnegative()
+    }),
+    connectedClients: z.number().int().nonnegative(),
+    intervals: z.object({
+        sinceMidnight: zAdminStatsWindow,
+        last24Hours: zAdminStatsWindow,
+        last7Days: zAdminStatsWindow
+    })
+});
+export type AdminStatsResponse = z.infer<typeof zAdminStatsResponse>;
 
 export const zUpdateAccountProfileRequest = z.object({
     username: zNormalizedUsername

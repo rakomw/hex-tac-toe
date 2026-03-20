@@ -307,6 +307,15 @@ export class HttpApplication {
             };
         }
 
+        if (req.path === '/admin') {
+            return {
+                ...defaultMetadata,
+                title: `Admin Dashboard • ${DEFAULT_PAGE_TITLE}`,
+                description: 'Administrative statistics for Infinity Hexagonial Tic-Tac-Toe.',
+                robots: 'noindex, nofollow'
+            };
+        }
+
         const finishedGameMatch = req.path.match(/^\/games\/([^/]+)$/);
         if (finishedGameMatch) {
             const finishedGame = await this.gameHistoryRepository.getFinishedGame(decodeURIComponent(finishedGameMatch[1]));

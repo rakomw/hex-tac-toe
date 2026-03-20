@@ -4,6 +4,7 @@ import type {
     AdapterSession,
     AdapterUser,
 } from '@auth/express/adapters';
+import type { UserRole } from '@ih3t/shared';
 import type { Logger } from 'pino';
 import { Collection, ObjectId, type Document } from 'mongodb';
 import { inject, injectable } from 'tsyringe';
@@ -16,6 +17,7 @@ interface AuthUserDocument extends Document {
     email?: string | null;
     emailVerified?: Date | null;
     image?: string | null;
+    role?: UserRole;
 }
 
 interface AuthAccountDocument extends Document {
@@ -47,11 +49,16 @@ interface AuthVerificationTokenDocument extends Document {
     expires: Date;
 }
 
+type StoredAdapterUser = AdapterUser & {
+    role: UserRole;
+};
+
 export interface AccountUserProfile {
     id: string;
     username: string;
     email: string | null;
     image: string | null;
+    role: UserRole;
 }
 
 const USERS_COLLECTION_NAME = process.env.MONGODB_AUTH_USERS_COLLECTION ?? 'users';
@@ -79,6 +86,7 @@ export class AuthRepository implements Adapter {
         const now = new ObjectId();
         const document: AuthUserDocument = {
             _id: now,
+            role: 'user',
             ...this.toUserDocument(user),
         };
 
@@ -393,13 +401,14 @@ export class AuthRepository implements Adapter {
         return new ObjectId(value);
     }
 
-    private mapUserDocument(document: AuthUserDocument): AdapterUser {
+    private mapUserDocument(document: AuthUserDocument): StoredAdapterUser {
         return {
             id: document._id.toHexString(),
             name: document.name ?? null,
             email: document.email ?? '',
             emailVerified: document.emailVerified ?? null,
             image: document.image ?? null,
+            role: document.role ?? 'user',
         };
     }
 
@@ -411,12 +420,13 @@ export class AuthRepository implements Adapter {
         };
     }
 
-    private mapAccountUserProfile(user: AdapterUser): AccountUserProfile {
+    private mapAccountUserProfile(user: AdapterUser & { role?: UserRole }): AccountUserProfile {
         return {
             id: user.id,
             username: user.name?.trim() || 'Player',
             email: user.email || null,
             image: user.image ?? null,
+            role: user.role ?? 'user',
         };
     }
 

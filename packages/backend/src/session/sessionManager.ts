@@ -59,6 +59,12 @@ export interface TerminalSessionStatus {
     placementsRemaining: number;
 }
 
+export interface ActiveSessionCounts {
+    total: number;
+    public: number;
+    private: number;
+}
+
 const DEFAULT_SHUTDOWN_DELAY_MS = 10 * 60 * 1000;
 const MAX_PLAYERS_PER_SESSION = 2;
 type ShutdownTrigger = 'all-sessions-finished' | 'deadline-reached';
@@ -121,6 +127,25 @@ export class SessionManager {
             currentTurnPlayerId: session.boardState.currentTurnPlayerId,
             placementsRemaining: session.boardState.placementsRemaining
         }));
+    }
+
+    getActiveSessionCounts(): ActiveSessionCounts {
+        const counts: ActiveSessionCounts = {
+            total: 0,
+            public: 0,
+            private: 0
+        };
+
+        for (const session of this.listStoredSessions()) {
+            if (session.state === 'finished') {
+                continue;
+            }
+
+            counts.total += 1;
+            counts[session.gameOptions.visibility] += 1;
+        }
+
+        return counts;
     }
 
     getShutdownState(): ShutdownState | null {

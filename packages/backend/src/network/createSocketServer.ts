@@ -256,7 +256,7 @@ export class SocketServerGateway {
 
     public getConnectionStatus() {
         return {
-            connectedClientCount: this.socketParticipations.size,
+            connectedClientCount: this.io?.sockets.sockets.size ?? 0,
             reconnectingClientCount: 0
         };
     }
@@ -348,7 +348,7 @@ export class SocketServerGateway {
 
     private createGuestUser(
         socket: Socket<ClientToServerEvents, ServerToClientEvents>
-    ) {
+    ): import('../auth/authRepository').AccountUserProfile {
         const clientInfo = getSocketClientInfo(socket);
         const guestSeed = clientInfo.deviceId ?? randomUUID();
         const fallbackSuffix = guestSeed.replace(/[^a-z0-9]/gi, '').slice(0, 4).toUpperCase() || 'PLAY';
@@ -357,7 +357,8 @@ export class SocketServerGateway {
             id: `guest:${guestSeed}`,
             username: `Guest ${fallbackSuffix}`,
             email: null,
-            image: null
+            image: null,
+            role: 'user'
         };
     }
 

@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import LiveGameRuntime from './components/LiveGameRuntime'
 import FinishedGameRoute from './routes/FinishedGameRoute'
 import FinishedGamesRoute from './routes/FinishedGamesRoute'
+import AdminRoute from './routes/AdminRoute'
 import LobbyRoute from './routes/LobbyRoute'
 import SessionRoute from './routes/SessionRoute'
 
@@ -35,6 +36,7 @@ function App() {
         <Route path="/games/:gameId" element={<FinishedGameRoute />} />
         <Route path="/account/games" element={<FinishedGamesRoute />} />
         <Route path="/account/games/:gameId" element={<FinishedGameRoute />} />
+        <Route path="/admin" element={<AdminRoute />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

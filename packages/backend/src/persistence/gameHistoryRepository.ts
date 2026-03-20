@@ -3,6 +3,8 @@ import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Collection, Document } from 'mongodb';
 import {
+    type AdminLongestGameInDuration,
+    type AdminLongestGameInMoves,
     type DatabaseGame,
     type DatabaseGamePlayer,
     type DatabaseGameResult,
@@ -53,6 +55,12 @@ interface ListFinishedGamesOptions {
     pageSize?: number;
     baseTimestamp?: number;
     playerProfileId?: string;
+}
+
+export interface GameHistoryAdminWindowStats {
+    gamesPlayed: number;
+    longestGameInMoves: AdminLongestGameInMoves | null;
+    longestGameInDuration: AdminLongestGameInDuration | null;
 }
 
 const mongoDbName = process.env.MONGODB_DB_NAME ?? 'ih3t';
@@ -244,6 +252,39 @@ export class GameHistoryRepository {
         return this.mapRecord(document);
     }
 
+    async getAdminWindowStats(startAt: number, endAt: number): Promise<GameHistoryAdminWindowStats> {
+        const collection = await this.getCollection();
+        const finishedGameMatch = {
+            finishedAt: {
+                $ne: null,
+                $gte: startAt,
+                $lte: endAt
+            }
+        };
+
+        const [gamesPlayed, longestGameInMovesDocument, longestGameInDurationDocument] = await Promise.all([
+            collection.countDocuments(finishedGameMatch),
+            collection.find(finishedGameMatch).sort({ moveCount: -1, finishedAt: -1, id: 1 }).limit(1).next(),
+            collection.find({
+                ...finishedGameMatch,
+                'gameResult.durationMs': {
+                    $ne: null,
+                    $lt: 8 * 60 * 60 * 1000
+                }
+            }).sort({ 'gameResult.durationMs': -1, finishedAt: -1, id: 1 }).limit(1).next()
+        ]);
+
+        return {
+            gamesPlayed,
+            longestGameInMoves: longestGameInMovesDocument
+                ? this.mapAdminLongestGameInMoves(longestGameInMovesDocument)
+                : null,
+            longestGameInDuration: longestGameInDurationDocument
+                ? this.mapAdminLongestGameInDuration(longestGameInDurationDocument)
+                : null
+        };
+    }
+
     private async getCollection(): Promise<Collection<GameHistoryDocument>> {
         if (this.collectionPromise !== null) {
             return this.collectionPromise;
@@ -307,6 +348,34 @@ export class GameHistoryRepository {
             ...this.mapSummary(parsedDocument),
             moves: parsedDocument.moves.map((move) => ({ ...move }))
         });
+    }
+
+    private mapAdminLongestGameInMoves(document: unknown): AdminLongestGameInMoves {
+        const parsedDocument = zGameHistoryDocument.parse(document);
+
+        return {
+            gameId: parsedDocument.id,
+            sessionId: parsedDocument.sessionId,
+            players: parsedDocument.players.map((player) => player.displayName),
+            finishedAt: parsedDocument.finishedAt ?? parsedDocument.startedAt,
+            moveCount: parsedDocument.moveCount
+        };
+    }
+
+    private mapAdminLongestGameInDuration(document: unknown): AdminLongestGameInDuration {
+        const parsedDocument = zGameHistoryDocument.parse(document);
+        const durationMs = parsedDocument.gameResult?.durationMs;
+        if (durationMs === null || durationMs === undefined) {
+            throw new Error(`Game ${parsedDocument.id} is missing a duration.`);
+        }
+
+        return {
+            gameId: parsedDocument.id,
+            sessionId: parsedDocument.sessionId,
+            players: parsedDocument.players.map((player) => player.displayName),
+            finishedAt: parsedDocument.finishedAt ?? parsedDocument.startedAt,
+            durationMs
+        };
     }
 
     private async migrateExistingGames(collection: Collection<GameHistoryDocument>): Promise<void> {

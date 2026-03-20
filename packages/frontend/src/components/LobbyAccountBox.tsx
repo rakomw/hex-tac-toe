@@ -82,9 +82,10 @@ function LobbyGuestDisplay({ hasPendingInvite }: LobbyGuestDisplayProps) {
 interface LobbySignedInAccountProps {
   account: AccountProfile
   onViewOwnFinishedGames: () => void
+  onViewAdmin: () => void
 }
 
-function LobbySignedInAccount({ account, onViewOwnFinishedGames }: LobbySignedInAccountProps) {
+function LobbySignedInAccount({ account, onViewOwnFinishedGames, onViewAdmin }: LobbySignedInAccountProps) {
   const [isEditingUsername, setIsEditingUsername] = useState(false)
   const [draftUsername, setDraftUsername] = useState(account.username)
   const [usernameError, setUsernameError] = useState<string | null>(null)
@@ -210,6 +211,14 @@ function LobbySignedInAccount({ account, onViewOwnFinishedGames }: LobbySignedIn
             >
               View My Matches
             </button>
+            {account.role === 'admin' && (
+              <button
+                onClick={onViewAdmin}
+                className="rounded-full border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-amber-100 transition hover:bg-amber-300/20"
+              >
+                Admin Dashboard
+              </button>
+            )}
             <button
               onClick={() => void handleSignOut()}
               className="rounded-full border border-rose-300/25 bg-rose-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-rose-100 transition hover:bg-rose-500/20"
@@ -225,9 +234,10 @@ function LobbySignedInAccount({ account, onViewOwnFinishedGames }: LobbySignedIn
 
 interface LobbyAccountBoxProps {
   onViewOwnFinishedGames: () => void
+  onViewAdmin: () => void
 }
 
-function LobbyAccountBox({ onViewOwnFinishedGames }: LobbyAccountBoxProps) {
+function LobbyAccountBox({ onViewOwnFinishedGames, onViewAdmin }: LobbyAccountBoxProps) {
   const location = useLocation()
   const hasPendingInvite = new URLSearchParams(location.search).has('join')
   const accountQuery = useQueryAccount()
@@ -237,7 +247,7 @@ function LobbyAccountBox({ onViewOwnFinishedGames }: LobbyAccountBoxProps) {
   if (accountQuery.isLoading) {
     inner = <LobbyAccountSkeleton />
   } else if (account) {
-    inner = <LobbySignedInAccount account={account} onViewOwnFinishedGames={onViewOwnFinishedGames} />
+    inner = <LobbySignedInAccount account={account} onViewOwnFinishedGames={onViewOwnFinishedGames} onViewAdmin={onViewAdmin} />
   } else {
     inner = <LobbyGuestDisplay hasPendingInvite={hasPendingInvite} />
   }

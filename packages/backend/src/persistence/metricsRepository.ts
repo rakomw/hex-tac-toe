@@ -43,6 +43,17 @@ export class MetricsRepository {
         }
     }
 
+    async countByEventBetween(event: string, startTimestamp: string, endTimestamp: string): Promise<number> {
+        const collection = await this.getCollection();
+        return await collection.countDocuments({
+            event,
+            timestamp: {
+                $gte: startTimestamp,
+                $lte: endTimestamp
+            }
+        });
+    }
+
     private async getCollection(): Promise<Collection<MetricDocument>> {
         if (this.collectionPromise !== null) {
             return this.collectionPromise;

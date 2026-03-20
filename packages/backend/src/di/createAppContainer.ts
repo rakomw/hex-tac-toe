@@ -1,4 +1,5 @@
 import { container, type DependencyContainer } from 'tsyringe';
+import { AdminStatsService } from '../admin/adminStatsService';
 import { AuthRepository } from '../auth/authRepository';
 import { AuthService } from '../auth/authService';
 import { BackgroundWorkerHub } from '../background/backgroundWorkers';
@@ -28,6 +29,7 @@ export function createAppContainer(): DependencyContainer {
     appContainer.registerSingleton(MongoDatabase);
     appContainer.registerSingleton(AuthRepository);
     appContainer.registerSingleton(AuthService);
+    appContainer.registerSingleton(AdminStatsService);
     appContainer.registerSingleton(GameHistoryRepository);
     appContainer.registerSingleton(MetricsRepository);
     appContainer.registerSingleton(BackgroundWorkerHub);

@@ -107,8 +107,12 @@ export class AuthService {
     }
 
     async getCurrentUser(request: Request): Promise<AccountUserProfile | null> {
-        const session = await this.getRequestSession(request);
-        return this.mapSessionToProfile(session);
+        const sessionToken = getCookieValue(request.get('cookie'), this.sessionCookieName);
+        if (!sessionToken) {
+            return null;
+        }
+
+        return this.authRepository.getUserProfileBySessionToken(sessionToken);
     }
 
     async getCurrentUserFromSocket(
@@ -124,20 +128,6 @@ export class AuthService {
         }
 
         return this.authRepository.getUserProfileBySessionToken(sessionToken);
-    }
-
-    private mapSessionToProfile(session: Session | null): AccountUserProfile | null {
-        const sessionUser = session?.user as SessionUserShape | undefined;
-        if (!sessionUser?.id) {
-            return null;
-        }
-
-        return {
-            id: sessionUser.id,
-            username: sessionUser.name?.trim() || 'Player',
-            email: sessionUser.email ?? null,
-            image: sessionUser.image ?? null,
-        };
     }
 }
 
