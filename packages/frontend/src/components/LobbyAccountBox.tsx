@@ -196,7 +196,7 @@ function LobbySignedInAccount({ account }: LobbySignedInAccountProps) {
           </>
         ) : (
           <>
-            <button
+            {/* <button
               onClick={() => {
                 setDraftUsername(account.username)
                 setIsEditingUsername(true)
@@ -205,7 +205,7 @@ function LobbySignedInAccount({ account }: LobbySignedInAccountProps) {
               className="rounded-full border border-white/15 bg-white/8 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white/14"
             >
               Edit Username
-            </button>
+            </button> */}
             <button
               onClick={() => void handleSignOut()}
               className="rounded-full border border-rose-300/25 bg-rose-500/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-rose-100 transition hover:bg-rose-500/20"
