@@ -1,6 +1,7 @@
 import type {
     CreateSessionResponse,
     DatabaseGameResult,
+    LobbyInfo,
     SessionFinishReason,
     SessionInfo,
     SessionParticipantRole,
@@ -97,7 +98,7 @@ export class SessionManager {
         this.shutdownHandler = handler;
     }
 
-    listSessions(): SessionInfo[] {
+    listLobbyInfo(): LobbyInfo[] {
         return this.listStoredSessions()
             .filter((session) => {
                 if (session.state === 'finished') {
@@ -106,7 +107,7 @@ export class SessionManager {
 
                 return session.state !== 'lobby' || session.gameOptions.visibility === 'public';
             })
-            .map((session) => this.toSessionInfo(session));
+            .map((session) => this.toLobbyInfo(session));
     }
 
     getSessionInfo(sessionId: string): SessionInfo | null {
@@ -220,7 +221,11 @@ export class SessionManager {
         const session = createGameSession(sessionId, params.lobbyOptions);
 
         this.sessions.set(session.id, session);
-        this.emitSessionsUpdated();
+
+        // Do not send an update yet. 
+        // An update will ether be send once a player joined that lobby anyways.
+        // This reduces the total update count.
+        // this.emitLobbyListUpdated();
 
         this.backgroundWorkers.track('game-created', {
             sessionId,
@@ -278,7 +283,7 @@ export class SessionManager {
         }
 
         const sessionInfo = this.toSessionInfo(session);
-        this.emitSessionsUpdated();
+        this.emitLobbyListUpdated();
         this.emitSessionUpdated(session);
         this.backgroundWorkers.track(role === 'player' ? 'game-joined' : 'spectator-joined', {
             sessionId: session.id,
@@ -453,7 +458,7 @@ export class SessionManager {
 
         this.sessions.delete(session.id);
         this.sessions.set(nextSession.id, nextSession);
-        this.emitSessionsUpdated();
+        this.emitLobbyListUpdated();
 
         return {
             sessionId: nextSession.id,
@@ -530,7 +535,7 @@ export class SessionManager {
             }, 'Removing empty session');
             this.simulation.clearSession(session.id);
             this.sessions.delete(session.id);
-            this.emitSessionsUpdated();
+            this.emitLobbyListUpdated();
             return;
         }
 
@@ -553,7 +558,7 @@ export class SessionManager {
         this.simulation.startSession(session, this.handleTurnExpired, session.startedAt);
 
         this.emitGameState(session);
-        this.emitSessionsUpdated();
+        this.emitLobbyListUpdated();
         this.emitSessionUpdated(session);
         this.logger.info({
             event: 'session.started',
@@ -599,7 +604,7 @@ export class SessionManager {
         });
 
         this.simulation.clearSession(session.id);
-        this.emitSessionsUpdated();
+        this.emitLobbyListUpdated();
         this.emitSessionUpdated(session);
         this.maybeShutdownAfterSessionFinished();
         this.logger.info({
@@ -656,7 +661,7 @@ export class SessionManager {
             this.sessions.delete(session.id);
         }
 
-        this.emitSessionsUpdated();
+        this.emitLobbyListUpdated();
         if (this.sessions.has(session.id)) {
             this.emitSessionUpdated(session);
         }
@@ -685,15 +690,15 @@ export class SessionManager {
 
         if (session.players.length === 0 && session.spectators.length === 0) {
             this.sessions.delete(session.id);
-            this.emitSessionsUpdated();
+            this.emitLobbyListUpdated();
             return;
         }
 
         this.emitSessionUpdated(session);
     }
 
-    private emitSessionsUpdated(): void {
-        this.eventHandlers.sessionsUpdated?.(this.listSessions());
+    private emitLobbyListUpdated(): void {
+        this.eventHandlers.lobbyListUpdated?.(this.listLobbyInfo());
     }
 
     private emitShutdownUpdated(): void {
@@ -862,6 +867,15 @@ export class SessionManager {
                     rematchAcceptedPlayerIds: [...session.rematchAcceptedPlayerIds]
                 };
         }
+    }
+
+    private toLobbyInfo(session: ServerGameSession): LobbyInfo {
+        return {
+            id: session.id,
+            playerNames: session.players.map((player) => player.displayName),
+            timeControl: { ...session.gameOptions.timeControl },
+            startedAt: session.state === 'in-game' ? (session.startedAt ?? session.createdAt) : null
+        };
     }
 
     private async ensureGameHistory(session: ServerGameSession): Promise<string> {

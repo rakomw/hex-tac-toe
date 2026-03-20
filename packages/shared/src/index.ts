@@ -129,6 +129,14 @@ export const zSessionParticipant = z.object({
 });
 export type SessionParticipant = z.infer<typeof zSessionParticipant>;
 
+export const zLobbyInfo = z.object({
+    id: zIdentifier,
+    playerNames: z.array(z.string()),
+    timeControl: zGameTimeControl,
+    startedAt: zTimestamp.nullable()
+});
+export type LobbyInfo = z.infer<typeof zLobbyInfo>;
+
 export const zCreateSessionRequest = z.object({
     lobbyOptions: zLobbyOptions.optional()
 });
@@ -277,7 +285,7 @@ export const zPlaceCellRequest = z.object({
 export type PlaceCellRequest = z.infer<typeof zPlaceCellRequest>;
 
 export const zServerToClientEvents = z.custom<{
-    'sessions-updated': (sessions: SessionInfo[]) => void;
+    'lobby-list': (lobbies: LobbyInfo[]) => void;
     'shutdown-updated': (shutdown: ShutdownState | null) => void;
     'admin-message': (broadcast: AdminBroadcastMessage) => void;
     'session-joined': (data: SessionJoinedEvent) => void;

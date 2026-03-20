@@ -59,10 +59,10 @@ export function startLiveGameClient() {
     void fetchAvailableSessions()
   })
 
-  socket.on('sessions-updated', (sessions) => {
+  socket.on('lobby-list', (lobbies) => {
     queryClient.setQueryData(
       queryKeys.availableSessions,
-      sortLobbySessions(sessions.filter(session => session.state !== 'finished'))
+      sortLobbySessions(lobbies)
     )
   })
 

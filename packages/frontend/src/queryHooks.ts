@@ -1,4 +1,4 @@
-import type { AccountResponse, AdminLeaderboard, AdminStatsResponse, FinishedGameRecord, FinishedGamesPage, SessionInfo } from '@ih3t/shared'
+import type { AccountResponse, AdminLeaderboard, AdminStatsResponse, FinishedGameRecord, FinishedGamesPage, LobbyInfo } from '@ih3t/shared'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { fetchJson } from './apiClient'
 
@@ -16,32 +16,22 @@ export const queryKeys = {
   finishedGame: (gameId: string) => ['finished-games', gameId] as const
 }
 
-export function sortLobbySessions(sessions: SessionInfo[]) {
-  const getSortTimestamp = (session: SessionInfo) => {
-    if (session.state === 'in-game') {
-      return session.startedAt
-    }
-
-    return 0
-  }
-
+export function sortLobbySessions(sessions: LobbyInfo[]) {
   return [...sessions].sort((leftSession, rightSession) => {
-    const leftCanJoin = leftSession.state === 'lobby' && leftSession.players.length < 2
-    const rightCanJoin = rightSession.state === 'lobby' && rightSession.players.length < 2
+    const leftCanJoin = leftSession.startedAt === null && leftSession.playerNames.length < 2
+    const rightCanJoin = rightSession.startedAt === null && rightSession.playerNames.length < 2
 
     if (leftCanJoin !== rightCanJoin) {
       return leftCanJoin ? -1 : 1
     }
 
-    return getSortTimestamp(rightSession) - getSortTimestamp(leftSession)
+    return (rightSession.startedAt ?? 0) - (leftSession.startedAt ?? 0)
   })
 }
 
 async function fetchAvailableSessions() {
-  const sessions = await fetchJson<SessionInfo[]>('/api/sessions')
-  return sortLobbySessions(
-    sessions.filter(session => session.state !== 'finished')
-  )
+  const sessions = await fetchJson<LobbyInfo[]>('/api/sessions')
+  return sortLobbySessions(sessions)
 }
 
 async function fetchAccount() {

@@ -1,4 +1,4 @@
-import type { CreateSessionRequest, SessionInfo, SessionParticipant, ShutdownState } from '@ih3t/shared'
+import type { CreateSessionRequest, LobbyInfo, ShutdownState } from '@ih3t/shared'
 import { useEffect, useState } from 'react'
 import CreateLobbyDialog from './CreateLobbyDialog'
 import { formatTimeControl } from '../lobbyOptions'
@@ -8,7 +8,7 @@ import ScreenFooter from './ScreenFooter'
 interface LobbyScreenProps {
   isConnected: boolean
   shutdown: ShutdownState | null
-  liveSessions: SessionInfo[]
+  liveSessions: LobbyInfo[]
   onHostGame: (request: CreateSessionRequest) => void
   onJoinGame: (sessionId: string) => void
   onViewFinishedGames: () => void
@@ -28,12 +28,12 @@ function formatLiveDuration(startedAt: number | null, now: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
-function formatLobbyPlayers(players: SessionParticipant[]) {
-  if (players.length === 0) {
+function formatLobbyPlayers(playerNames: string[]) {
+  if (playerNames.length === 0) {
     return 'Waiting for first player'
   }
 
-  return players.map(player => player.displayName).join(' vs ')
+  return playerNames.join(' vs ')
 }
 
 function LobbyScreen({
@@ -59,7 +59,7 @@ function LobbyScreen({
     return () => window.clearInterval(interval)
   }, [])
 
-  const canJoinSession = (session: SessionInfo) => session.state === 'lobby' && session.players.length < 2
+  const canJoinSession = (session: LobbyInfo) => session.startedAt === null && session.playerNames.length < 2
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.22),_transparent_30%),linear-gradient(135deg,_#111827,_#0f172a_45%,_#1e293b)] text-white">
@@ -162,12 +162,12 @@ function LobbyScreen({
                               {canJoin ? 'Open Lobby' : 'Active Game'}
                             </span>
                             <span className="rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-200">
-                              {formatTimeControl(session.gameOptions.timeControl)}
+                              {formatTimeControl(session.timeControl)}
                             </span>
                           </div>
                           <div className="mt-2 break-all text-xl font-bold text-white sm:text-2xl">{session.id}</div>
                           <div className="mt-2 text-sm text-slate-400">
-                            {formatLobbyPlayers(session.players)}
+                            {formatLobbyPlayers(session.playerNames)}
                           </div>
                           {!canJoin && session.startedAt && (
                             <div className="text-sm text-slate-400">

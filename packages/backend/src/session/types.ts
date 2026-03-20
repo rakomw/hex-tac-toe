@@ -1,6 +1,7 @@
 import type {
     GameBoard,
     GameMove,
+    LobbyInfo,
     LobbyOptions,
     ParticipantConnection,
     SessionFinishReason,
@@ -90,7 +91,7 @@ export interface SessionUpdatedEvent {
 }
 
 export interface SessionManagerEventHandlers {
-    sessionsUpdated?: (sessions: SessionInfo[]) => void;
+    lobbyListUpdated?: (lobbies: LobbyInfo[]) => void;
     shutdownUpdated?: (shutdown: ShutdownState | null) => void;
     sessionUpdated?: (event: SessionUpdatedEvent) => void;
     gameStateUpdated?: (payload: PublicGameStatePayload) => void;

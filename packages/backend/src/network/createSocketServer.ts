@@ -6,6 +6,7 @@ import { inject, injectable } from 'tsyringe';
 import {
     type AdminBroadcastMessage,
     type ClientToServerEvents,
+    type LobbyInfo,
     type ServerToClientEvents,
     zJoinSessionRequest,
     zPlaceCellRequest,
@@ -32,8 +33,11 @@ type Participation = {
 
 @injectable()
 export class SocketServerGateway {
+    private static readonly LOBBY_LIST_DEBOUNCE_MS = 1_000;
     private readonly logger: Logger;
     private readonly socketParticipations = new Map<string, Participation>();
+    private pendingLobbyList: LobbyInfo[] | null = null;
+    private lobbyListBroadcastTimer: ReturnType<typeof setTimeout> | null = null;
     private io?: Server<ClientToServerEvents, ServerToClientEvents>;
 
     constructor(
@@ -52,8 +56,8 @@ export class SocketServerGateway {
         } : undefined);
 
         this.sessionManager.setEventHandlers({
-            sessionsUpdated(sessions) {
-                io.emit('sessions-updated', sessions);
+            lobbyListUpdated: (lobbies) => {
+                this.scheduleLobbyListBroadcast(io, lobbies);
             },
             shutdownUpdated(shutdown) {
                 io.emit('shutdown-updated', shutdown);
@@ -102,7 +106,7 @@ export class SocketServerGateway {
             }, 'Socket connected');
 
             this.backgroundWorkers.track('site-visited', { client: clientInfo });
-            socket.emit('sessions-updated', this.sessionManager.listSessions());
+            socket.emit('lobby-list', this.sessionManager.listLobbyInfo());
             socket.emit('shutdown-updated', this.sessionManager.getShutdownState());
 
             socket.on('join-session', async (request) => {
@@ -379,8 +383,46 @@ export class SocketServerGateway {
     }
 
     public async shutdownConnections() {
+        this.clearLobbyListBroadcastTimer();
         this.io?.emit('error', 'Server shutdown');
         await this.io?.close();
+    }
+
+    private scheduleLobbyListBroadcast(
+        io: Server<ClientToServerEvents, ServerToClientEvents>,
+        lobbies: LobbyInfo[]
+    ): void {
+        if (this.lobbyListBroadcastTimer) {
+            /* update already pending */
+            this.pendingLobbyList = lobbies;
+            return;
+        } else if (!this.pendingLobbyList) {
+            /* send update now and schedule update in LOBBY_LIST_DEBOUNCE_MS if updated */
+            io.emit('lobby-list', lobbies);
+        }
+
+        this.pendingLobbyList = null;
+        this.lobbyListBroadcastTimer = setTimeout(() => {
+            this.lobbyListBroadcastTimer = null;
+
+            const nextLobbyList = this.pendingLobbyList;
+            this.pendingLobbyList = null;
+            if (!nextLobbyList) {
+                return;
+            }
+
+            io.emit('lobby-list', nextLobbyList);
+        }, SocketServerGateway.LOBBY_LIST_DEBOUNCE_MS);
+    }
+
+    private clearLobbyListBroadcastTimer(): void {
+        if (!this.lobbyListBroadcastTimer) {
+            return;
+        }
+
+        clearTimeout(this.lobbyListBroadcastTimer);
+        this.lobbyListBroadcastTimer = null;
+        this.pendingLobbyList = null;
     }
 }
 

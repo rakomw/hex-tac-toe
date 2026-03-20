@@ -110,7 +110,7 @@ export class ApiRouter {
         });
 
         router.get('/sessions', (_req, res) => {
-            res.json(this.sessionManager.listSessions());
+            res.json(this.sessionManager.listLobbyInfo());
         });
 
         router.get('/finished-games', async (req, res) => {
