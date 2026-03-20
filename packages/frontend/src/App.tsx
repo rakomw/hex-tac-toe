@@ -259,6 +259,7 @@ function App() {
   } else if (liveScreen.kind === 'playing') {
     screen = (
       <GameScreen
+        sessionId={liveScreen.sessionId}
         players={liveScreen.players}
         participantRole={liveScreen.participantRole}
         currentPlayerId={connection.currentPlayerId}
@@ -278,6 +279,7 @@ function App() {
 
     screen = (
       <GameScreen
+        sessionId={liveScreen.sessionId}
         players={liveScreen.players}
         participantRole={liveScreen.participantRole}
         currentPlayerId={connection.currentPlayerId}
@@ -315,6 +317,7 @@ function App() {
     const finishedGameId = liveScreen.finishedGameId
     screen = (
       <GameScreen
+        sessionId={liveScreen.sessionId}
         players={liveScreen.players}
         participantRole={liveScreen.participantRole}
         currentPlayerId={connection.currentPlayerId}

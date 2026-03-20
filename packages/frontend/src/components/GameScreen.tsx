@@ -9,6 +9,7 @@ import { getCellKey, getPlayerColor } from './game-screen/gameBoardUtils'
 import useGameBoard from './game-screen/useGameBoard'
 
 interface GameScreenProps {
+  sessionId: string
   players: string[]
   participantRole: SessionParticipantRole
   currentPlayerId: string
@@ -26,6 +27,7 @@ function mergeCellKeys(existingKeys: string[], addedKeys: string[]) {
 }
 
 function GameScreen({
+  sessionId,
   players,
   participantRole,
   currentPlayerId,
@@ -99,6 +101,10 @@ function GameScreen({
     if (addedHighlightedTurnCells.length > 0) {
       const addedHighlightedTurnPlayerId = addedHighlightedTurnCells[0]?.occupiedBy ?? null
       if (ongoingHighlightedTurnPlayerIdRef.current !== addedHighlightedTurnPlayerId) {
+        if (ongoingHighlightedTurnKeysRef.current.length > 0) {
+          lastHighlightedTurnKeysRef.current = ongoingHighlightedTurnKeysRef.current
+        }
+
         ongoingHighlightedTurnPlayerIdRef.current = addedHighlightedTurnPlayerId
         ongoingHighlightedTurnKeysRef.current = []
       }
@@ -180,6 +186,7 @@ function GameScreen({
 
           {interactionEnabled && (
             <GameScreenHud
+              sessionId={sessionId}
               isSpectator={isSpectator}
               occupiedCellCount={boardState.cells.length}
               ownColor={ownColor}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ShutdownState } from '@ih3t/shared'
 
 interface GameScreenHudProps {
+  sessionId: string
   isSpectator: boolean
   occupiedCellCount: number
   ownColor: string
@@ -20,6 +21,7 @@ function formatRemainingTime(remainingMs: number) {
 }
 
 function GameScreenHud({
+  sessionId,
   isSpectator,
   occupiedCellCount,
   ownColor,
@@ -95,7 +97,7 @@ function GameScreenHud({
           </button>
         </div>
 
-        <div className="text-sm uppercase tracking-[0.25em] text-sky-300">Live Match</div>
+        <div className="text-sm uppercase tracking-[0.25em] text-sky-300">Live Match {sessionId}</div>
         <h1 className="mt-1 text-2xl font-bold">Infinite Hex Tic-Tac-Toe</h1>
         <div className="mt-2 text-sm text-slate-300">
           Connect 6 hexagons in a row.<br />
