@@ -56,7 +56,7 @@ function LobbyGuestDisplay() {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/10 text-lg font-black text-white">
+        <div className="flex flex-shrink-0 h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/10 text-lg font-black text-white">
           G
         </div>
         <div className="min-w-0">
@@ -135,10 +135,10 @@ function LobbySignedInAccount({ account }: LobbySignedInAccountProps) {
           <img
             src={account.image}
             alt={account.username}
-            className="h-12 w-12 rounded-full object-cover"
+            className="h-12 w-12 rounded-full object-cover flex-shrink-0"
           />
         ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/10 text-lg font-black text-white">
+          <div className="flex flex-shrink-0 h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/10 text-lg font-black text-white">
             {account.username.slice(0, 1).toUpperCase()}
           </div>
         )}
