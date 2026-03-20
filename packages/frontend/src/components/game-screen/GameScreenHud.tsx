@@ -70,7 +70,7 @@ function GameScreenHud({
         <div className="pointer-events-auto absolute bottom-3 right-3 z-10 flex flex-col items-end gap-2 md:hidden">
           {shutdown && shutdownCountdownMs !== null && (
             <div className="rounded-full border border-amber-200/30 bg-slate-950/92 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100 shadow-lg">
-              Shutdown {formatRemainingTime(shutdownCountdownMs)}
+              Restarting {formatRemainingTime(shutdownCountdownMs)}
             </div>
           )}
           <button
@@ -121,7 +121,7 @@ function GameScreenHud({
         {shutdown && shutdownCountdownMs !== null && (
           <div className="mt-4 rounded-2xl border border-amber-200/25 bg-amber-300/10 px-4 py-3 text-sm text-amber-50">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-amber-200">Shutdown Scheduled</div>
-            <div className="mt-1">New games are disabled. This server closes in {formatRemainingTime(shutdownCountdownMs)}.</div>
+            <div className="mt-1">New games are disabled. This server restarts in {formatRemainingTime(shutdownCountdownMs)}.</div>
           </div>
         )}
 

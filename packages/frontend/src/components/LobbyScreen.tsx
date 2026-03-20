@@ -90,7 +90,7 @@ function LobbyScreen({
                     : 'cursor-not-allowed bg-slate-500/60 text-slate-200'
                     }`}
                 >
-                  {shutdown ? 'Shutdown Pending' : 'Host Match'}
+                  {shutdown ? 'Restart Pending' : 'Host Match'}
                 </button>
                 <button
                   onClick={onViewFinishedGames}
@@ -105,7 +105,7 @@ function LobbyScreen({
                 )}
                 {shutdown && (
                   <div className="inline-flex items-center rounded-full border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-sm font-medium text-amber-100">
-                    New matches are disabled until the shutdown completes.
+                    New matches are disabled until the restart completes.
                   </div>
                 )}
               </div>
