@@ -328,7 +328,7 @@ export class SessionManager {
         };
     }
 
-    createRematchSession(finishedSessionId: string): RematchSessionResult {
+    createRematchSession(finishedSessionId: string, spectatorIds: string[] = []): RematchSessionResult {
         if (this.scheduledShutdown) {
             throw new SessionError('Server shutdown is scheduled. Rematches are unavailable.');
         }
@@ -347,6 +347,9 @@ export class SessionManager {
         const nextSessionId = this.createSessionId();
         const nextSession = createStoredGameSession(nextSessionId, rematch.lobbyOptions);
         nextSession.players = [...rematch.players];
+        nextSession.spectators = Array.from(new Set(
+            spectatorIds.filter((spectatorId) => !rematch.players.includes(spectatorId))
+        ));
 
         /* reverse the player order to effectively "switch sides" on re-match */
         nextSession.players.reverse();

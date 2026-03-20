@@ -174,8 +174,35 @@ export class SocketServerGateway {
                         });
                     }
 
-                    const nextSession = this.sessionManager.createRematchSession(finishedSessionId);
+                    const spectatorConnections: Array<{
+                        spectatorId: string;
+                        socket: Socket<ClientToServerEvents, ServerToClientEvents>;
+                    }> = [];
+                    const spectatorIds = new Set<string>();
+                    for (const roomSocketId of io.sockets.adapter.rooms.get(finishedSessionId) ?? []) {
+                        const roomSocket = io.sockets.sockets.get(roomSocketId);
+                        if (!roomSocket) {
+                            continue;
+                        }
+
+                        const roomParticipantId = this.getParticipantId(roomSocket.id);
+                        if (!roomParticipantId || rematch.players.includes(roomParticipantId) || spectatorIds.has(roomParticipantId)) {
+                            continue;
+                        }
+
+                        spectatorIds.add(roomParticipantId);
+                        spectatorConnections.push({
+                            spectatorId: roomParticipantId,
+                            socket: roomSocket
+                        });
+                    }
+
+                    const nextSession = this.sessionManager.createRematchSession(
+                        finishedSessionId,
+                        spectatorConnections.map((spectatorConnection) => spectatorConnection.spectatorId)
+                    );
                     for (const playerConnection of playerConnections) {
+                        playerConnection.socket.leave(finishedSessionId);
                         playerConnection.socket.join(nextSession.sessionId);
                         playerConnection.socket.emit('session-joined', {
                             sessionId: nextSession.sessionId,
@@ -184,6 +211,18 @@ export class SocketServerGateway {
                             players: nextSession.players,
                             lobbyOptions: nextSession.lobbyOptions,
                             participantId: playerConnection.playerId
+                        });
+                    }
+                    for (const spectatorConnection of spectatorConnections) {
+                        spectatorConnection.socket.leave(finishedSessionId);
+                        spectatorConnection.socket.join(nextSession.sessionId);
+                        spectatorConnection.socket.emit('session-joined', {
+                            sessionId: nextSession.sessionId,
+                            state: nextSession.state,
+                            role: 'spectator',
+                            players: nextSession.players,
+                            lobbyOptions: nextSession.lobbyOptions,
+                            participantId: spectatorConnection.spectatorId
                         });
                     }
 

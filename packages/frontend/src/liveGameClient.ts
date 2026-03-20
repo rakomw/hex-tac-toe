@@ -170,8 +170,14 @@ export function leaveGame() {
 }
 
 export function returnToLobby() {
+  const state = useLiveGameStore.getState()
+  const activeSessionId = getActiveSessionId(state.screen)
+  if (activeSessionId) {
+    socket?.emit('leave-session', activeSessionId)
+  }
+
   cancelRematch()
-  useLiveGameStore.getState().resetToLobby()
+  state.resetToLobby()
   void fetchAvailableSessions()
 }
 
