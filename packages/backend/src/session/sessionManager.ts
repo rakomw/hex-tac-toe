@@ -373,8 +373,7 @@ export class SessionManager {
 
         this.store.deletePendingRematch(finishedSessionId);
 
-        const nextSessionId = this.createSessionId();
-        const nextSession = createStoredGameSession(nextSessionId, rematch.lobbyOptions);
+        const nextSession = createStoredGameSession(finishedSessionId, rematch.lobbyOptions);
         nextSession.players = [...rematch.players];
         nextSession.playerNames = { ...rematch.playerNames };
         nextSession.participantProfiles = { ...rematch.participantProfiles };

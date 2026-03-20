@@ -262,8 +262,6 @@ export class SocketServerGateway {
                         spectatorConnections.map((spectatorConnection) => spectatorConnection.spectatorId)
                     );
                     for (const playerConnection of playerConnections) {
-                        playerConnection.socket.leave(parsedSessionId);
-                        playerConnection.socket.join(nextSession.sessionId);
                         playerConnection.socket.emit('session-joined', {
                             sessionId: nextSession.sessionId,
                             state: nextSession.state,
@@ -275,8 +273,6 @@ export class SocketServerGateway {
                         });
                     }
                     for (const spectatorConnection of spectatorConnections) {
-                        spectatorConnection.socket.leave(parsedSessionId);
-                        spectatorConnection.socket.join(nextSession.sessionId);
                         spectatorConnection.socket.emit('session-joined', {
                             sessionId: nextSession.sessionId,
                             state: nextSession.state,
