@@ -2,8 +2,8 @@ import type { DatabaseGamePlayer, PlayerNames } from '@ih3t/shared'
 import type { BoardCell } from '@ih3t/shared'
 
 export const HEX_RADIUS = 8
-export const MIN_SCALE = 18
-export const MAX_SCALE = 96
+export const MIN_SCALE = 12
+export const MAX_SCALE = 200
 export const DEFAULT_SCALE = 42
 export const GRID_LINE_COLOR = 'rgba(148, 163, 184, 0.18)'
 export const ORIGIN_LINE_COLOR = 'rgba(125, 211, 252, 0.55)'
