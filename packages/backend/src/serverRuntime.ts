@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import { ServerConfig } from './config/serverConfig';
+import { EloRepository } from './elo/eloRepository';
 import { ROOT_LOGGER } from './logger';
 import { HttpApplication } from './network/createHttpApp';
 import { SocketServerGateway } from './network/createSocketServer';
@@ -29,6 +30,7 @@ export class ApplicationServer {
         @inject(SocketServerGateway) private readonly socketServerGateway: SocketServerGateway,
         @inject(GameSimulation) private readonly simulation: GameSimulation,
         @inject(MongoDatabase) private readonly mongoDatabase: MongoDatabase,
+        @inject(EloRepository) private readonly eloRepository: EloRepository,
         @inject(SessionManager) private readonly sessionManager: SessionManager,
         @inject(ServerConfig) private readonly serverConfig: ServerConfig
     ) {
@@ -59,6 +61,7 @@ export class ApplicationServer {
         }, 'Starting server');
 
         await this.mongoDatabase.getDatabase();
+        await this.eloRepository.initialize();
 
         this.startCronJobs();
 

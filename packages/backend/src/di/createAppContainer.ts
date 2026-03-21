@@ -3,6 +3,8 @@ import { AdminStatsService } from '../admin/adminStatsService';
 import { AuthRepository } from '../auth/authRepository';
 import { AuthService } from '../auth/authService';
 import { ServerConfig } from '../config/serverConfig';
+import { EloHandler } from '../elo/eloHandler';
+import { EloRepository } from '../elo/eloRepository';
 import { LeaderboardService } from '../leaderboard/leaderboardService';
 import { createRootLogger, ROOT_LOGGER } from '../logger';
 import { MetricsTracker } from '../metrics/metricsTracker';
@@ -30,6 +32,8 @@ export function createAppContainer(): DependencyContainer {
     appContainer.registerSingleton(MongoDatabase);
     appContainer.registerSingleton(AuthRepository);
     appContainer.registerSingleton(AuthService);
+    appContainer.registerSingleton(EloRepository);
+    appContainer.registerSingleton(EloHandler);
     appContainer.registerSingleton(AdminStatsService);
     appContainer.registerSingleton(LeaderboardService);
     appContainer.registerSingleton(GameHistoryRepository);

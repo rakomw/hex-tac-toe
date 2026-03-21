@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import type { SessionInfo } from '@ih3t/shared'
 
 type FinishedPlayerScreenVariant = 'win' | 'lose'
@@ -16,6 +16,66 @@ interface FinishedPlayerScreenProps {
   onRequestRematch?: () => void
 }
 
+function formatEloChange(eloChange: number) {
+  return `${eloChange >= 0 ? '+' : ''}${eloChange}`
+}
+
+function easeOutCubic(progress: number) {
+  return 1 - Math.pow(1 - progress, 3)
+}
+
+function useAnimatedElo(targetValue: number | null, initialValue: number | null) {
+  const [displayValue, setDisplayValue] = useState(targetValue ?? 0)
+
+  useEffect(() => {
+    if (targetValue === null) {
+      setDisplayValue(0)
+      return
+    }
+
+    if (initialValue === null || initialValue === targetValue) {
+      setDisplayValue(targetValue)
+      return
+    }
+
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplayValue(targetValue)
+      return
+    }
+
+    let animationFrameId = 0
+    let animationDelayTimer = 0
+    const animationDurationMs = 2_750
+    const animationDelayMs = 350
+    const animationStartAt = performance.now()
+
+    setDisplayValue(initialValue)
+
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - animationStartAt) / animationDurationMs)
+      const easedProgress = easeOutCubic(progress)
+      setDisplayValue(
+        Math.round(initialValue + (targetValue - initialValue) * easedProgress)
+      )
+
+      if (progress < 1) {
+        animationFrameId = window.requestAnimationFrame(animate)
+      }
+    }
+
+    animationDelayTimer = window.setTimeout(() => {
+      animationFrameId = window.requestAnimationFrame(animate)
+    }, animationDelayMs)
+
+    return () => {
+      window.clearTimeout(animationDelayTimer)
+      window.cancelAnimationFrame(animationFrameId)
+    }
+  }, [initialValue, targetValue])
+
+  return displayValue
+}
+
 function FinishedPlayerScreen({
   session,
   currentPlayerId,
@@ -28,6 +88,18 @@ function FinishedPlayerScreen({
   onRequestRematch
 }: Readonly<FinishedPlayerScreenProps>) {
   const isWin = variant === 'win'
+  const currentPlayer = session.players.find((player) => player.id === currentPlayerId) ?? null
+  const eloSummary = currentPlayer && currentPlayer.elo !== null && currentPlayer.eloChange !== null
+    ? {
+      currentElo: currentPlayer.elo,
+      previousElo: currentPlayer.elo - currentPlayer.eloChange,
+      eloChange: currentPlayer.eloChange
+    }
+    : null
+  const animatedElo = useAnimatedElo(
+    eloSummary?.currentElo ?? null,
+    eloSummary?.previousElo ?? null
+  )
   const isRematchAvailable = session.players.length === 2 && session.winningPlayerId !== null
   const isRematchRequestedByCurrentPlayer = session.rematchAcceptedPlayerIds.includes(currentPlayerId)
   const isRematchRequestedByOpponent = session.rematchAcceptedPlayerIds.some(
@@ -48,7 +120,6 @@ function FinishedPlayerScreen({
         ? 'The other player wants another round. Accept to jump straight into the rematch flow.'
         : 'You can return to the lobby, inspect the replay, or run it back immediately.'
   const isRematchDisabled = !isRematchAvailable || isRematchRequestedByCurrentPlayer
-
   const theme = isWin
     ? {
       shell: 'bg-[radial-gradient(circle_at_top,_rgba(52,211,153,0.22),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(251,191,36,0.16),_transparent_28%),rgba(2,6,23,0.72)]',
@@ -56,6 +127,8 @@ function FinishedPlayerScreen({
       badge: 'border-emerald-200/30 bg-emerald-400/12 text-emerald-100',
       accent: 'from-emerald-300/90 via-emerald-200/40 to-amber-200/0',
       status: 'border-emerald-300/16 bg-emerald-400/10 text-emerald-50',
+      eloValue: 'text-emerald-50',
+      eloChangeValue: 'text-emerald-200',
       primaryButton: 'bg-emerald-300 text-slate-950 hover:bg-emerald-200',
       secondaryButton: 'border-emerald-200/25 bg-emerald-950/55 text-white hover:bg-emerald-950/80',
       subtleButton: 'border-white/12 bg-white/7 text-white hover:bg-white/12'
@@ -66,6 +139,8 @@ function FinishedPlayerScreen({
       badge: 'border-rose-200/30 bg-rose-400/12 text-rose-100',
       accent: 'from-rose-300/90 via-rose-200/40 to-amber-200/0',
       status: 'border-rose-300/16 bg-rose-400/10 text-rose-50',
+      eloValue: 'text-rose-50',
+      eloChangeValue: 'text-rose-200',
       primaryButton: 'bg-rose-300 text-slate-950 hover:bg-rose-200',
       secondaryButton: 'border-rose-200/25 bg-rose-950/55 text-white hover:bg-rose-950/80',
       subtleButton: 'border-white/12 bg-white/7 text-white hover:bg-white/12'
@@ -88,42 +163,61 @@ function FinishedPlayerScreen({
               <p className="mt-4 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg">
                 {message}
               </p>
+
+              {eloSummary && (
+                <div className="mt-10 max-w-2xl">
+                  <div className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-white/55">
+                    ELO Rating
+                  </div>
+                  <div className="flex items-end gap-3">
+                    <div className={`text-5xl font-black tracking-[0.04em] sm:text-6xl ${theme.eloValue}`}>
+                      {animatedElo}
+                    </div>
+                    <div className={`pb-1 text-3xl font-black leading-none ${eloSummary.eloChange >= 0 ? 'text-emerald-200' : theme.eloChangeValue}`}>
+                      {formatEloChange(eloSummary.eloChange)}
+                    </div>
+                  </div>
+                  <p className="mt-3 max-w-sm text-sm leading-6 text-white/62">
+                    {eloSummary.eloChange >= 0
+                      ? 'Strong finish. Your rating climbed, and you are building momentum.'
+                      : 'Tough result, but every match sharpens your game. The next climb starts here.'}
+                  </p>
+                </div>
+              )}
             </div>
           </section>
 
-          <aside className="border-t border-white/10 bg-black/16 px-6 py-7 sm:px-8 sm:py-8 md:border-l md:border-t-0 lg:px-9">
-            <div className="rounded-[1.75rem] border border-white/10 bg-white/5 p-5">
-              <div className="text-sm font-semibold uppercase tracking-[0.22em] text-white/65">Continue</div>
-              <p className="mt-3 text-sm leading-6 text-slate-200">
-                {rematchStatus}
-              </p>
+          <aside className="flex flex-col justify-center border-t border-white/10 bg-black/16 px-6 py-7 sm:px-8 sm:py-8 md:border-l md:border-t-0 lg:px-9">
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-white/65">Continue</div>
+            <p className="mt-3 text-sm leading-6 text-slate-200">
+              {rematchStatus}
+            </p>
 
-              <div className="mt-6 flex flex-col gap-3">
-                {onRequestRematch && (
-                  <button
-                    onClick={onRequestRematch}
-                    disabled={isRematchDisabled}
-                    className={`w-full rounded-2xl px-5 py-4 text-sm font-semibold uppercase tracking-[0.16em] transition disabled:cursor-not-allowed disabled:opacity-60 ${theme.primaryButton}`}
-                  >
-                    {rematchLabel}
-                  </button>
-                )}
-                {reviewGameHref && (
-                  <a
-                    href={reviewGameHref}
-                    onClick={onReviewGame}
-                    className={`block w-full rounded-2xl border px-5 py-4 text-center text-sm font-semibold uppercase tracking-[0.16em] transition ${theme.secondaryButton}`}
-                  >
-                    Review Game
-                  </a>
-                )}
+            <div className="mt-6 flex flex-col gap-3">
+              {onRequestRematch && (
                 <button
-                  onClick={onReturnToLobby}
-                  className={`w-full rounded-2xl border px-5 py-4 text-sm font-semibold uppercase tracking-[0.16em] transition ${theme.subtleButton}`}
+                  onClick={onRequestRematch}
+                  disabled={isRematchDisabled}
+                  className={`w-full rounded-2xl px-5 py-4 text-sm font-semibold uppercase tracking-[0.16em] transition disabled:cursor-not-allowed disabled:opacity-60 ${theme.primaryButton}`}
                 >
-                  Return To Lobby
+                  {rematchLabel}
                 </button>
-              </div>
+              )}
+              {reviewGameHref && (
+                <a
+                  href={reviewGameHref}
+                  onClick={onReviewGame}
+                  className={`block w-full rounded-2xl border px-5 py-4 text-center text-sm font-semibold uppercase tracking-[0.16em] transition ${theme.secondaryButton}`}
+                >
+                  Review Game
+                </a>
+              )}
+              <button
+                onClick={onReturnToLobby}
+                className={`w-full rounded-2xl border px-5 py-4 text-sm font-semibold uppercase tracking-[0.16em] transition ${theme.subtleButton}`}
+              >
+                Return To Lobby
+              </button>
             </div>
           </aside>
         </div>

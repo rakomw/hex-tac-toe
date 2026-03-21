@@ -41,6 +41,8 @@ export interface ServerGameSession {
     finishReason: SessionFinishReason | null;
     winningPlayerId: string | null;
     rematchAcceptedPlayerIds: string[];
+    gamePlayers: ServerSessionParticipant[];
+    isRatedGame: boolean;
 }
 
 export type PlayerLeaveSource = 'leave-session' | 'disconnect';
@@ -131,6 +133,8 @@ export function cloneSessionParticipant(participant: ServerSessionParticipant): 
         id: participant.id,
         displayName: participant.displayName,
         profileId: participant.profileId,
+        elo: participant.elo,
+        eloChange: participant.eloChange,
         connection: toPublicParticipantConnection(participant.connection)
     };
 }
@@ -187,6 +191,8 @@ export function createGameSession(
         },
         finishReason: null,
         winningPlayerId: null,
-        rematchAcceptedPlayerIds: []
+        rematchAcceptedPlayerIds: [],
+        gamePlayers: [],
+        isRatedGame: false
     };
 }

@@ -4,7 +4,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router'
 import LobbyScreen from '../components/LobbyScreen'
 import { hostGame, joinGame } from '../liveGameClient'
 import { useLiveGameStore } from '../liveGameStore'
-import { useQueryAvailableSessions } from '../queryHooks'
+import { useQueryAccount, useQueryAvailableSessions } from '../queryHooks'
 import { buildFinishedGamesPath, buildSessionPath } from './archiveRouteState'
 
 function LobbyRoute() {
@@ -13,6 +13,7 @@ function LobbyRoute() {
   const inviteSessionId = searchParams.get('join')
   const connection = useLiveGameStore(state => state.connection)
   const shutdown = useLiveGameStore(state => state.shutdown)
+  const accountQuery = useQueryAccount({ enabled: true })
   const availableSessionsQuery = useQueryAvailableSessions({ enabled: true })
 
   useEffect(() => {
@@ -43,6 +44,8 @@ function LobbyRoute() {
     <LobbyScreen
       isConnected={connection.isConnected}
       shutdown={shutdown}
+      account={accountQuery.data?.user ?? null}
+      isAccountLoading={accountQuery.isLoading}
       liveSessions={availableSessionsQuery.data ?? []}
       onHostGame={createLobby}
       onJoinGame={joinLiveGame}

@@ -57,7 +57,8 @@ const zGameTimeControlInput = z.union([
 const zCreateSessionRequestInput = z.object({
     lobbyOptions: z.object({
         visibility: zLobbyVisibility.optional(),
-        timeControl: zGameTimeControlInput.optional()
+        timeControl: zGameTimeControlInput.optional(),
+        rated: z.coerce.boolean().optional()
     }).optional()
 });
 
@@ -203,6 +204,15 @@ export class ApiRouter {
         router.post('/sessions', express.json(), async (req, res) => {
             try {
                 const lobbyOptions = this.parseLobbyOptions(req.body);
+                const currentUser = lobbyOptions.rated
+                    ? await this.authService.getCurrentUser(req)
+                    : null;
+
+                if (lobbyOptions.rated && !currentUser) {
+                    res.status(401).json({ error: 'Sign in with Discord to create rated lobbies.' });
+                    return;
+                }
+
                 const response: CreateSessionResponse = this.sessionManager.createSession({
                     client: getRequestClientInfo(req),
                     lobbyOptions
@@ -227,10 +237,12 @@ export class ApiRouter {
 
         const visibility = request.lobbyOptions?.visibility;
         const timeControl = request.lobbyOptions?.timeControl ?? { ...DEFAULT_LOBBY_OPTIONS.timeControl };
+        const rated = request.lobbyOptions?.rated ?? DEFAULT_LOBBY_OPTIONS.rated;
 
         return {
             visibility: visibility ?? DEFAULT_LOBBY_OPTIONS.visibility,
-            timeControl
+            timeControl,
+            rated
         };
     }
 

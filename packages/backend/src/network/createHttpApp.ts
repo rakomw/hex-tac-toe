@@ -116,36 +116,45 @@ function formatTimeControl(timeControl: GameTimeControl): string {
     return `${formatSeconds(Math.round(timeControl.mainTimeMs / 1000))} +${formatSeconds(Math.round(timeControl.incrementMs / 1000))} clock based`;
 }
 
-function getNormalizedPlayerNames(players: SessionParticipant[]): string[] {
-    return players
-        .map((player) => player.displayName.trim())
-        .filter((playerName) => playerName.length > 0);
+function getNormalizedPlayerLabels(players: SessionParticipant[]): string[] {
+    return players.map((player) => {
+        const normalizedName = player.displayName.trim() || 'A player';
+        return player.elo === null
+            ? normalizedName
+            : `${normalizedName} (${player.elo} ELO)`;
+    });
 }
 
-function describePlayersWaiting(players: SessionParticipant[], visibility: string): string {
-    const [firstPlayerName] = getNormalizedPlayerNames(players);
+function getLobbyModeLabel(rated: boolean): string {
+    return rated ? 'rated' : 'casual';
+}
+
+function describePlayersWaiting(players: SessionParticipant[], visibility: string, rated: boolean): string {
+    const [firstPlayerName] = getNormalizedPlayerLabels(players);
+    const modeLabel = getLobbyModeLabel(rated);
     if (firstPlayerName) {
-        return `${firstPlayerName} is waiting for you in a ${visibility} lobby`;
+        return `${firstPlayerName} is waiting for you in a ${visibility} ${modeLabel} lobby`;
     }
 
-    return `A ${visibility} lobby is waiting for you`;
+    return `A ${visibility} ${modeLabel} lobby is waiting for you`;
 }
 
-function describePlayersInMatch(players: SessionParticipant[], visibility: string): string {
-    const normalizedPlayerNames = getNormalizedPlayerNames(players);
+function describePlayersInMatch(players: SessionParticipant[], visibility: string, rated: boolean): string {
+    const normalizedPlayerNames = getNormalizedPlayerLabels(players);
+    const modeLabel = getLobbyModeLabel(rated);
     if (normalizedPlayerNames.length === 1) {
-        return `${normalizedPlayerNames[0]} is already playing in a ${visibility} Infinity Hexagonal Tic-Tac-Toe match`;
+        return `${normalizedPlayerNames[0]} is already playing in a ${visibility} ${modeLabel} Infinity Hexagonal Tic-Tac-Toe match`;
     }
 
     if (normalizedPlayerNames.length === 2) {
-        return `${normalizedPlayerNames[0]} and ${normalizedPlayerNames[1]} are already playing in a ${visibility} Infinity Hexagonal Tic-Tac-Toe match`;
+        return `${normalizedPlayerNames[0]} and ${normalizedPlayerNames[1]} are already playing in a ${visibility} ${modeLabel} Infinity Hexagonal Tic-Tac-Toe match`;
     }
 
     if (normalizedPlayerNames.length > 2) {
-        return `${normalizedPlayerNames[0]}, ${normalizedPlayerNames[1]}, and ${normalizedPlayerNames.length - 2} more are already playing in a ${visibility} Infinity Hexagonal Tic-Tac-Toe match`;
+        return `${normalizedPlayerNames[0]}, ${normalizedPlayerNames[1]}, and ${normalizedPlayerNames.length - 2} more are already playing in a ${visibility} ${modeLabel} Infinity Hexagonal Tic-Tac-Toe match`;
     }
 
-    return `A ${visibility} Infinity Hexagonal Tic-Tac-Toe match is underway`;
+    return `A ${visibility} ${modeLabel} Infinity Hexagonal Tic-Tac-Toe match is underway`;
 }
 
 @injectable()
@@ -393,13 +402,14 @@ export class HttpApplication {
         }
 
         const canJoin = canJoinSession(inviteSession);
+        const inviteModeLabel = inviteSession.gameOptions.rated ? 'Rated' : 'Casual';
         return {
             title: canJoin
-                ? `Join Lobby ${inviteSession.id} • ${DEFAULT_PAGE_TITLE}`
-                : `Spectate Match ${inviteSession.id} • ${DEFAULT_PAGE_TITLE}`,
+                ? `Join ${inviteModeLabel} Lobby ${inviteSession.id} • ${DEFAULT_PAGE_TITLE}`
+                : `Spectate ${inviteModeLabel} Match ${inviteSession.id} • ${DEFAULT_PAGE_TITLE}`,
             description: canJoin
-                ? `${describePlayersWaiting(inviteSession.players, inviteSession.gameOptions.visibility)} with ${formatTimeControl(inviteSession.gameOptions.timeControl)} time control. Click to join the match.`
-                : `${describePlayersInMatch(inviteSession.players, inviteSession.gameOptions.visibility)} with ${formatTimeControl(inviteSession.gameOptions.timeControl)} time control. Open to spectate it live.`,
+                ? `${describePlayersWaiting(inviteSession.players, inviteSession.gameOptions.visibility, inviteSession.gameOptions.rated)} with ${formatTimeControl(inviteSession.gameOptions.timeControl)} time control. Click to join the match.`
+                : `${describePlayersInMatch(inviteSession.players, inviteSession.gameOptions.visibility, inviteSession.gameOptions.rated)} with ${formatTimeControl(inviteSession.gameOptions.timeControl)} time control. Open to spectate it live.`,
             robots: 'noindex, nofollow'
         };
     }

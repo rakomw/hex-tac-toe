@@ -45,6 +45,10 @@ function getFinishReasonLabel(reason: NonNullable<FinishedGameRecord['gameResult
   return 'Terminated'
 }
 
+function formatEloChange(eloChange: number) {
+  return `${eloChange >= 0 ? '+' : ''}${eloChange}`
+}
+
 function buildReplayBoardState(game: FinishedGameRecord, visibleMoveCount: number): BoardState {
   return {
     cells: game.moves.slice(0, visibleMoveCount).map((move) => ({
@@ -251,6 +255,9 @@ function FinishedGameReplayView({
                 <div className="mt-1 text-sm text-white">
                   {formatTimeControl(game.gameOptions.timeControl)}
                 </div>
+                <div className="mt-1 text-sm text-white/75">
+                  {game.gameOptions.rated ? 'Rated' : 'Casual'}
+                </div>
               </div>
 
               <div>
@@ -266,18 +273,33 @@ function FinishedGameReplayView({
                   {game.players.map((player) => (
                     <div
                       key={player.playerId}
-                      className={`flex items-center gap-2 py-px text-sm text-white`}
+                      className="flex items-center justify-between gap-3 py-px text-sm text-white"
                     >
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: getPlayerTileColor(game.playerTiles, player.playerId) }}
-                      />
-                      <span>{getPlayerLabel(game.players, player.playerId)}</span>
-                      {gameResult?.winningPlayerId === player.playerId && (
-                        <span className="rounded-full border border-amber-200/30 bg-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-black">
-                          Winner
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: getPlayerTileColor(game.playerTiles, player.playerId) }}
+                        />
+                        <span>{getPlayerLabel(game.players, player.playerId)}</span>
+                        {gameResult?.winningPlayerId === player.playerId && (
+                          <span className="rounded-full border border-amber-200/30 bg-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-black">
+                            Winner
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-right">
+                        {player.elo !== null && (
+                          <div className="text-sm font-medium text-white">
+                            {player.elo} ELO
+                          </div>
+                        )}
+                        {player.eloChange !== null && (
+                          <div className={`text-xs ${player.eloChange >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                            {formatEloChange(player.eloChange)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

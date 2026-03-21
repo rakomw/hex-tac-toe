@@ -445,7 +445,9 @@ export class AuthRepository implements Adapter {
         };
     }
 
-    private mapAccountUserProfile(user: AdapterUser & { role?: UserRole }): AccountUserProfile {
+    private mapAccountUserProfile(
+        user: AdapterUser & { role?: UserRole }
+    ): AccountUserProfile {
         return {
             id: user.id,
             username: user.name?.trim() || 'Player',

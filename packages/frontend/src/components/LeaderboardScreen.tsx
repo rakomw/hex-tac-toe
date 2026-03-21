@@ -25,8 +25,8 @@ function LeaderboardScreen({
           currentUsername={currentUsername}
 
           title="Top 10 Players"
-          eyebrow="Wins Leaderboard"
-          description="Ranked by total wins across finished game history. Ties fall back to win ratio, then games played."
+          eyebrow="ELO Leaderboard"
+          description="Ranked by ELO from rated games and refreshed every 10 minutes."
           showSnapshot={false}
         />
       </div>
@@ -42,8 +42,8 @@ function LeaderboardScreen({
   return (
     <PageCorpus
       category={"Player Leaderboard"}
-      title={"Most victorious players"}
-      description={"Current standings across all finished games, recalculated from match history every 10 minutes."}
+      title={"Highest rated players"}
+      description={"Current ELO standings from rated games, refreshed on a 10 minute cache."}
     >
       {errorMessage && (
         <div className="mt-6 rounded-[1.5rem] border border-rose-300/30 bg-rose-500/10 px-5 py-4 text-sm text-rose-100">

@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import assert from 'node:assert';
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
+import { EloHandler } from '../elo/eloHandler';
 import { ROOT_LOGGER } from '../logger';
 import { MetricsTracker } from '../metrics/metricsTracker';
 import {
@@ -86,6 +87,7 @@ export class SessionManager {
     constructor(
         @inject(ROOT_LOGGER) rootLogger: Logger,
         @inject(GameSimulation) private readonly simulation: GameSimulation,
+        @inject(EloHandler) private readonly eloHandler: EloHandler,
         @inject(GameHistoryRepository) private readonly gameHistoryRepository: GameHistoryRepository,
         @inject(MetricsTracker) private readonly metricsTracker: MetricsTracker
     ) {
@@ -246,7 +248,7 @@ export class SessionManager {
         return { sessionId };
     }
 
-    joinSession(params: JoinSessionParams): JoinSessionResult {
+    async joinSession(params: JoinSessionParams): Promise<JoinSessionResult> {
         const session = this.requireSession(params.sessionId);
         if (session.state === 'finished') {
             throw new SessionError('Session has already finished');
@@ -268,10 +270,18 @@ export class SessionManager {
             throw new SessionError('Socket already bound to a session');
         }
 
+        const profileId = params.user.id.startsWith('guest:') ? null : params.user.id;
+        if (session.gameOptions.rated && !profileId) {
+            throw new SessionError('Sign in with Discord to join rated games.');
+        }
+
+        const rating = await this.eloHandler.getPlayerRating(profileId);
         const participant = {
             id: this.createParticipantId(session),
             displayName: params.user.username,
-            profileId: params.user.id.startsWith('guest:') ? null : params.user.id,
+            profileId,
+            elo: rating?.elo ?? null,
+            eloChange: null,
             deviceId: params.client.deviceId ?? randomUUID(),
             connection: {
                 status: 'connected',
@@ -283,6 +293,10 @@ export class SessionManager {
         if (session.state === 'lobby') {
             if (session.players.length >= MAX_PLAYERS_PER_SESSION) {
                 throw new SessionError('Session is full');
+            }
+
+            if (session.gameOptions.rated && profileId && session.players.some((player) => player.profileId === profileId)) {
+                throw new SessionError('You cannot join your own rated lobby as the second player.');
             }
 
             session.players.push(participant);
@@ -361,7 +375,7 @@ export class SessionManager {
         }
 
         const winningPlayerId = session.players.find((player) => player.id !== participantId)?.id ?? null;
-        this.finishSession(session, 'surrender', winningPlayerId);
+        void this.finishSession(session, 'surrender', winningPlayerId);
     }
 
     handleSocketDisconnect(socketId: string) {
@@ -415,7 +429,7 @@ export class SessionManager {
 
         if (moveResult.winningPlayerId) {
             this.emitGameState(session);
-            this.finishSession(session, 'six-in-a-row', moveResult.winningPlayerId);
+            void this.finishSession(session, 'six-in-a-row', moveResult.winningPlayerId);
             return;
         }
 
@@ -467,9 +481,18 @@ export class SessionManager {
         }
 
         const nextSession = createGameSession(finishedSessionId, session.gameOptions);
-        nextSession.players = cloneStoredParticipants(session.players).reverse();
+        nextSession.players = cloneStoredParticipants(session.players)
+            .reverse()
+            .map((participant) => ({
+                ...participant,
+                eloChange: null
+            }));
         nextSession.spectators = cloneStoredParticipants(session.spectators)
-            .filter((spectator) => spectatorIds.includes(spectator.id));
+            .filter((spectator) => spectatorIds.includes(spectator.id))
+            .map((spectator) => ({
+                ...spectator,
+                eloChange: null
+            }));
 
         this.sessions.delete(session.id);
         this.sessions.set(nextSession.id, nextSession);
@@ -515,7 +538,7 @@ export class SessionManager {
         }
 
         const winningPlayerId = session.players.find((player) => player.id !== timedOutPlayerId)?.id ?? null;
-        this.finishSession(session, 'timeout', winningPlayerId);
+        void this.finishSession(session, 'timeout', winningPlayerId);
     };
 
     private handleScheduledShutdownDeadline(): void {
@@ -532,7 +555,7 @@ export class SessionManager {
         }, 'Shutdown deadline reached; closing remaining sessions');
 
         for (const session of [...this.listStoredSessions()]) {
-            this.finishSession(session, 'terminated', null);
+            void this.finishSession(session, 'terminated', null);
         }
 
         this.requestApplicationShutdown('deadline-reached');
@@ -566,6 +589,13 @@ export class SessionManager {
         session.finishReason = null;
         session.winningPlayerId = null;
         session.rematchAcceptedPlayerIds = [];
+        session.gamePlayers = cloneStoredParticipants(session.players).map((participant) => ({
+            ...participant,
+            eloChange: null
+        }));
+        session.isRatedGame = this.isRatedGameEnabled(session);
+        this.clearParticipantEloChanges(session.players);
+        this.clearParticipantEloChanges(session.spectators);
         this.simulation.startSession(session, this.handleTurnExpired, session.startedAt);
 
         this.emitGameState(session);
@@ -579,7 +609,7 @@ export class SessionManager {
         }, 'Session started');
     }
 
-    private finishSession(session: ServerGameSession, reason: SessionFinishReason, winningPlayerId: string | null): void {
+    private async finishSession(session: ServerGameSession, reason: SessionFinishReason, winningPlayerId: string | null): Promise<void> {
         if (session.state === 'finished') {
             return;
         }
@@ -618,6 +648,7 @@ export class SessionManager {
         this.emitLobbyListUpdated();
         this.emitSessionUpdated(session);
         this.maybeShutdownAfterSessionFinished();
+        await this.applyRatedGameResult(session, winningPlayerId);
         this.logger.info({
             event: 'session.finished',
             sessionId: session.id,
@@ -654,7 +685,7 @@ export class SessionManager {
 
         if (session.state === 'in-game') {
             const winningPlayerId = session.players[0]?.id ?? null;
-            this.finishSession(session, 'disconnect', winningPlayerId);
+            void this.finishSession(session, 'disconnect', winningPlayerId);
             return;
         }
 
@@ -919,7 +950,13 @@ export class SessionManager {
         return {
             id: session.id,
             playerNames: session.players.map((player) => player.displayName),
+            players: session.players.map((player) => ({
+                displayName: player.displayName,
+                profileId: player.profileId,
+                elo: player.elo
+            })),
             timeControl: { ...session.gameOptions.timeControl },
+            rated: session.gameOptions.rated,
             startedAt: session.state === 'in-game' ? (session.startedAt ?? session.createdAt) : null
         };
     }
@@ -940,15 +977,101 @@ export class SessionManager {
     }
 
     private buildDatabasePlayers(session: ServerGameSession) {
-        return session.players.map((player, playerIndex) => ({
+        const players = session.gamePlayers.length > 0 ? session.gamePlayers : session.players;
+        return players.map((player, playerIndex) => ({
             playerId: player.id,
             displayName: player.displayName || `Player ${playerIndex + 1}`,
-            profileId: player.profileId ?? player.id
+            profileId: player.profileId ?? player.id,
+            elo: player.elo ?? null,
+            eloChange: player.eloChange ?? null
         }));
     }
 
     private buildPlayerTiles(session: ServerGameSession): Record<string, PlayerTileConfig> {
-        return buildPlayerTileConfigMap(session.players.map((player) => player.id));
+        const players = session.gamePlayers.length > 0 ? session.gamePlayers : session.players;
+        return buildPlayerTileConfigMap(players.map((player) => player.id));
+    }
+
+    private isRatedGameEnabled(session: ServerGameSession): boolean {
+        const players = session.gamePlayers;
+        if (!session.gameOptions.rated || players.length !== MAX_PLAYERS_PER_SESSION || players.some((player) => player.profileId === null)) {
+            return false;
+        }
+
+        return new Set(players.map((player) => player.profileId)).size === MAX_PLAYERS_PER_SESSION;
+    }
+
+    private clearParticipantEloChanges(participants: ServerSessionParticipant[]): void {
+        for (const participant of participants) {
+            participant.eloChange = null;
+        }
+    }
+
+    private async applyRatedGameResult(session: ServerGameSession, winningPlayerId: string | null): Promise<void> {
+        if (!session.isRatedGame || !winningPlayerId) {
+            return;
+        }
+
+        const ratedPlayers = session.gamePlayers.filter((player): player is ServerSessionParticipant & { profileId: string } => player.profileId !== null);
+        if (ratedPlayers.length !== MAX_PLAYERS_PER_SESSION) {
+            return;
+        }
+
+        const winner = ratedPlayers.find((player) => player.id === winningPlayerId);
+        const loser = ratedPlayers.find((player) => player.id !== winningPlayerId);
+        if (!winner || !loser) {
+            return;
+        }
+
+        try {
+            const updatedRatings = await this.eloHandler.applyRatedGameResult([
+                { profileId: winner.profileId, score: 1 },
+                { profileId: loser.profileId, score: 0 }
+            ]);
+
+            if (updatedRatings.size !== MAX_PLAYERS_PER_SESSION) {
+                return;
+            }
+
+            this.applyUpdatedRatings(session.gamePlayers, updatedRatings);
+            this.applyUpdatedRatings(session.players, updatedRatings);
+            this.applyUpdatedRatings(session.spectators, updatedRatings);
+            const gameId = await this.ensureGameHistory(session);
+            await this.gameHistoryRepository.updatePlayerEloChanges(
+                gameId,
+                new Map(Array.from(updatedRatings.entries()).flatMap(([profileId, updatedRating]) => {
+                    const gamePlayer = session.gamePlayers.find((player) => player.profileId === profileId);
+                    return gamePlayer ? [[gamePlayer.id, updatedRating.eloChange] as const] : [];
+                }))
+            );
+            this.emitSessionUpdated(session);
+        } catch (error: unknown) {
+            this.logger.error({
+                err: error,
+                event: 'session.elo-update.failed',
+                sessionId: session.id,
+                winningPlayerId
+            }, 'Failed to apply rated game result');
+        }
+    }
+
+    private applyUpdatedRatings(
+        participants: ServerSessionParticipant[],
+        updatedRatings: Map<string, { elo: number; eloChange: number }>
+    ): void {
+        for (const participant of participants) {
+            if (!participant.profileId) {
+                continue;
+            }
+
+            const updatedRating = updatedRatings.get(participant.profileId);
+            if (!updatedRating) {
+                continue;
+            }
+
+            participant.elo = updatedRating.elo;
+            participant.eloChange = updatedRating.eloChange;
+        }
     }
 
     private maybeShutdownAfterSessionFinished(): void {

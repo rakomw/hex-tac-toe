@@ -1,4 +1,4 @@
-import type { CreateSessionRequest, LobbyInfo, ShutdownState } from '@ih3t/shared'
+import type { AccountProfile, CreateSessionRequest, LobbyInfo, LobbyListParticipant, ShutdownState } from '@ih3t/shared'
 import { useEffect, useState } from 'react'
 import CreateLobbyDialog from './CreateLobbyDialog'
 import { formatTimeControl } from '../lobbyOptions'
@@ -7,6 +7,8 @@ import ScreenFooter from './ScreenFooter'
 interface LobbyScreenProps {
   isConnected: boolean
   shutdown: ShutdownState | null
+  account: AccountProfile | null
+  isAccountLoading: boolean
   liveSessions: LobbyInfo[]
   onHostGame: (request: CreateSessionRequest) => void
   onJoinGame: (sessionId: string) => void
@@ -27,17 +29,45 @@ function formatLiveDuration(startedAt: number | null, now: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
-function formatLobbyPlayers(playerNames: string[]) {
-  if (playerNames.length === 0) {
+function formatLobbyPlayers(players: LobbyListParticipant[], rated: boolean) {
+  if (players.length === 0) {
     return 'Waiting for first player'
   }
 
-  return playerNames.join(' vs ')
+  return players
+    .map((player) => rated && player.elo !== null
+      ? `${player.displayName} (${player.elo})`
+      : player.displayName)
+    .join(' vs ')
+}
+
+function ClockBadgeIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" className="h-3.5 w-3.5 fill-none stroke-current">
+      <circle cx="8" cy="8" r="5.25" strokeWidth="1.5" />
+      <path d="M8 5.2v3.2l2.1 1.25" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function ModeBadgeIcon({ rated }: Readonly<{ rated: boolean }>) {
+  return rated ? (
+    <svg viewBox="0 0 16 16" aria-hidden="true" className="h-3.5 w-3.5 fill-current">
+      <path d="M8 1.9l1.7 3.46 3.82.56-2.76 2.69.65 3.8L8 10.59 4.6 12.4l.65-3.8L2.5 5.92l3.8-.56L8 1.9Z" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 16 16" aria-hidden="true" className="h-3.5 w-3.5 fill-none stroke-current">
+      <circle cx="8" cy="8" r="4.75" strokeWidth="1.5" />
+      <path d="M5 8h6" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
 }
 
 function LobbyScreen({
   isConnected,
   shutdown,
+  account,
+  isAccountLoading,
   liveSessions,
   onHostGame,
   onJoinGame,
@@ -55,16 +85,38 @@ function LobbyScreen({
   }, [])
 
   const canJoinSession = (session: LobbyInfo) => session.startedAt === null && session.playerNames.length < 2
+  const isJoinBlockedForGuest = (session: LobbyInfo) => session.rated && !account
+  const isJoinBlockedForOwnRatedSeat = (session: LobbyInfo) =>
+    session.rated
+    && canJoinSession(session)
+    && Boolean(account?.id)
+    && session.players.some((player) => player.profileId === account?.id)
+
+  const getJoinButtonLabel = (session: LobbyInfo) => {
+    if (isJoinBlockedForGuest(session)) {
+      return isAccountLoading ? 'Checking Account' : 'Sign In Required'
+    }
+
+    if (isJoinBlockedForOwnRatedSeat(session)) {
+      return 'Already Joined'
+    }
+
+    return canJoinSession(session) ? 'Join Lobby' : 'Spectate'
+  }
+
+  const isJoinButtonDisabled = (session: LobbyInfo) =>
+    !isConnected || isJoinBlockedForGuest(session) || isJoinBlockedForOwnRatedSeat(session)
 
   return (
     <div className="flex flex-1 flex-col px-4 py-4 text-white sm:px-6 sm:py-6">
       <CreateLobbyDialog
         isOpen={isCreateLobbyDialogOpen}
         onClose={() => setIsCreateLobbyDialogOpen(false)}
+        account={account}
         onCreateLobby={onHostGame}
       />
       <div className="mx-auto flex gap-4 flex-col lg:flex-row lg:gap-8 lg:min-h-0 h-full flex-1 mt-4 lg:mt-[8vh]">
-        <section className="relative flex rounded-[1.75rem] border-white/10 bg-white/6 p-6 sm:min-h-[34rem] sm:rounded-[2rem] sm:p-8 md:p-10 sm:h-[34rem]">
+        <section className="w-full relative flex rounded-[1.75rem] border-white/10 bg-white/6 p-6 sm:min-h-[34rem] sm:rounded-[2rem] sm:p-8 md:p-10 sm:h-[34rem]">
           <div className="relative flex flex-1 flex-col justify-center">
             <div className="self-start inline-flex rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-[11px] uppercase tracking-[0.28em] text-amber-100 sm:px-4 sm:text-xs sm:tracking-[0.35em]">
               Two Players
@@ -105,7 +157,7 @@ function LobbyScreen({
           </div>
         </section>
 
-        <section className="rounded-[2rem] border border-white/10 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.45)] backdrop-blur sm:min-h-[34rem] sm:h-[34rem] sm:bg-slate-950/55 md:p-8 lg:flex lg:flex-col">
+        <section className="w-full rounded-[2rem] border border-white/10 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.45)] backdrop-blur sm:min-h-[34rem] sm:h-[34rem] sm:bg-slate-950/55 md:p-8 lg:flex lg:flex-col">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-sm uppercase tracking-[0.3em] text-sky-200/80">Live Sessions</p>
@@ -130,42 +182,54 @@ function LobbyScreen({
                   return (
                     <div
                       key={session.id}
-                      className="flex flex-col gap-4 rounded-[1.5rem] border border-white/10 bg-white/6 p-4 shadow-lg sm:rounded-3xl sm:p-5 lg:flex-row lg:items-center lg:justify-between"
+                      className="flex flex-col flex-wrap gap-2 rounded-[1.5rem] border border-white/10 bg-white/6 p-4 shadow-lg sm:rounded-3xl sm:p-5"
                     >
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${canJoin
-                            ? 'bg-emerald-400/15 text-emerald-200'
-                            : 'bg-sky-400/15 text-sky-200'
-                            }`}>
-                            {canJoin ? 'Open Lobby' : 'Active Game'}
-                          </span>
-                          <span className="rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-200">
-                            {formatTimeControl(session.timeControl)}
-                          </span>
-                        </div>
-                        <div className="mt-2 break-all text-xl font-bold text-white sm:text-2xl">{session.id}</div>
-                        <div className="mt-2 text-sm text-slate-400">
-                          {formatLobbyPlayers(session.playerNames)}
-                        </div>
-                        {!canJoin && session.startedAt && (
-                          <div className="text-sm text-slate-400">
-                            In game for {formatLiveDuration(session.startedAt, now)}
-                          </div>
-                        )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${canJoin
+                          ? 'bg-emerald-400/15 text-emerald-200'
+                          : 'bg-sky-400/15 text-sky-200'
+                          }`}>
+                          {canJoin ? 'Open Lobby' : 'Active Game'}
+                        </span>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${session.rated
+                          ? 'bg-amber-300/15 text-amber-100'
+                          : 'bg-white/8 text-slate-200'
+                          }`}>
+                          <ModeBadgeIcon rated={session.rated} />
+                          {session.rated ? 'Rated' : 'Unrated'}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-200">
+                          <ClockBadgeIcon />
+                          {formatTimeControl(session.timeControl)}
+                        </span>
                       </div>
-                      <button
-                        onClick={() => onJoinGame(session.id)}
-                        disabled={!isConnected}
-                        className={`rounded-full px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] transition lg:shrink-0 ${!isConnected
-                          ? 'cursor-not-allowed bg-slate-500/60 text-slate-200'
-                          : canJoin
-                            ? 'bg-sky-400 text-slate-950 shadow-[0_10px_30px_rgba(56,189,248,0.28)] hover:-translate-y-0.5 hover:bg-sky-300'
-                            : 'border border-white/15 bg-white/8 text-white hover:-translate-y-0.5 hover:bg-white/14'
-                          }`}
+                      <div
+                        className="flex sm:flex-row gap-4 flex-col sm:items-center justify-between"
                       >
-                        {canJoin ? 'Join Lobby' : 'Spectate'}
-                      </button>
+                        <div className="min-w-0 mt-2 ">
+                          <div className="break-all text-xl font-bold text-white sm:text-2xl">{session.id}</div>
+                          <div className="text-sm text-slate-400">
+                            {formatLobbyPlayers(session.players, session.rated)}
+                          </div>
+                          {!canJoin && session.startedAt && (
+                            <div className="text-sm text-slate-400">
+                              In game for {formatLiveDuration(session.startedAt, now)}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => onJoinGame(session.id)}
+                          disabled={isJoinButtonDisabled(session)}
+                          className={`rounded-full px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] transition lg:shrink-0 ${isJoinButtonDisabled(session)
+                            ? 'cursor-not-allowed bg-slate-500/60 text-slate-200'
+                            : canJoin
+                              ? 'bg-sky-400 text-slate-950 shadow-[0_10px_30px_rgba(56,189,248,0.28)] hover:-translate-y-0.5 hover:bg-sky-300'
+                              : 'border border-white/15 bg-white/8 text-white hover:-translate-y-0.5 hover:bg-white/14'
+                            }`}
+                        >
+                          {getJoinButtonLabel(session)}
+                        </button>
+                      </div>
                     </div>
                   )
                 })}

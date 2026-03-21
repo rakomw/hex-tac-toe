@@ -2,21 +2,11 @@ import { useEffect, useState } from 'react'
 import type { Leaderboard, LeaderboardPlacement, LeaderboardPlayer } from '@ih3t/shared'
 import { useQueryAccount } from '../queryHooks'
 
-const winRatioFormatter = new Intl.NumberFormat(undefined, {
-  style: 'percent',
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1
-})
-
 export function formatDateTime(timestamp: number) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(timestamp)
-}
-
-function formatWinRatio(winRatio: number) {
-  return winRatioFormatter.format(winRatio)
 }
 
 function formatCountdown(remainingMs: number) {
@@ -64,7 +54,7 @@ function LeaderboardMetric({
   minWidth: string
 }>) {
   return (
-    <div className="flex items-baseline gap-1.5 whitespace-nowrap" style={{ minWidth }}>
+    <div className="flex items-baseline gap-1.5 whitespace-nowrap justify-end" style={{ minWidth }}>
       <div className="text-sm font-bold text-white sm:text-base text-right">{value}</div>
       <div className="text-[0.58rem] uppercase tracking-[0.16em] text-slate-500 sm:text-[0.62rem]">{label}</div>
     </div >
@@ -104,7 +94,7 @@ function PersonalLeaderboardCard({
         <div className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-sky-200">Your Place</div>
         <div className="mt-2 text-base font-bold text-white">{queryAccount.data.user.username}</div>
         <div className="mt-1 text-slate-300">
-          You are not ranked yet. Finish a signed-in game to claim a leaderboard spot.
+          You are not ranked yet. Finish a rated game to claim a leaderboard spot.
         </div>
       </div>
     )
@@ -159,10 +149,10 @@ function LeaderboardCard({
           </div>
         </div>
 
-        <div className="col-start-2 sm:col-span-1 items-center flex w-full justify-center gap-x-4 gap-y-1.5 pt-0.5 text-left sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-x-5 sm:pt-0">
-          <LeaderboardMetric label="Played" minWidth={"4em"} value={player.gamesPlayed} />
+        <div className="col-start-2 justify-end sm:col-span-1 flex-row-reverse sm:flex-row items-center flex w-full gap-x-4 gap-y-1.5 pt-0.5 text-left sm:w-auto sm:flex-nowrap sm:gap-x-5 sm:pt-0">
           <LeaderboardMetric label="Won" minWidth={"4em"} value={player.gamesWon} />
-          <LeaderboardMetric label="Ratio" minWidth={"5em"} value={formatWinRatio(player.winRatio)} />
+          <LeaderboardMetric label="Played" minWidth={"4em"} value={player.gamesPlayed} />
+          <LeaderboardMetric label="ELO" minWidth={"4em"} value={player.elo} />
         </div>
       </div>
     </div>
@@ -173,8 +163,8 @@ export function LeaderboardSection({
   leaderboard,
   isLoading,
   title = 'Top 10 Players',
-  eyebrow = 'Wins Leaderboard',
-  description = 'Ranked by total wins across finished game history. Ties fall back to win ratio, then games played.',
+  eyebrow = 'ELO Leaderboard',
+  description = 'Ranked by ELO rating from rated games. Ties fall back to rated games played, then account age.',
   showSnapshot = true
 }: Readonly<{
   leaderboard: Leaderboard,
@@ -208,7 +198,7 @@ export function LeaderboardSection({
 
       {leaderboard.players.length === 0 ? (
         <div className="mt-6 rounded-[1.5rem] border border-dashed border-white/10 bg-slate-950/35 px-5 py-10 text-center text-sm text-slate-400">
-          No completed games yet, so the leaderboard is still empty.
+          No rated games yet, so the leaderboard is still empty.
         </div>
       ) : (
         <div className="mt-4 space-y-2 sm:mt-5 sm:space-y-2.5">

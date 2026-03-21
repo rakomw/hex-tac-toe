@@ -90,7 +90,8 @@ export type GameTimeControl = z.infer<typeof zGameTimeControl>;
 
 export const zLobbyOptions = z.object({
     visibility: zLobbyVisibility,
-    timeControl: zGameTimeControl
+    timeControl: zGameTimeControl,
+    rated: z.boolean().default(false)
 });
 export type LobbyOptions = z.infer<typeof zLobbyOptions>;
 
@@ -99,7 +100,8 @@ export const DEFAULT_LOBBY_OPTIONS: LobbyOptions = zLobbyOptions.parse({
     timeControl: {
         mode: 'turn',
         turnTimeMs: 45_000
-    }
+    },
+    rated: false
 });
 
 export const zShutdownState = z.object({
@@ -179,14 +181,25 @@ export const zSessionParticipant = z.object({
     id: zIdentifier,
     displayName: z.string(),
     profileId: zIdentifier.nullable(),
+    elo: z.number().int().nullable().default(null),
+    eloChange: z.number().int().nullable().default(null),
     connection: zParticipantConnection
 });
 export type SessionParticipant = z.infer<typeof zSessionParticipant>;
 
+export const zLobbyListParticipant = z.object({
+    displayName: z.string(),
+    profileId: zIdentifier.nullable(),
+    elo: z.number().int().nullable().default(null)
+});
+export type LobbyListParticipant = z.infer<typeof zLobbyListParticipant>;
+
 export const zLobbyInfo = z.object({
     id: zIdentifier,
     playerNames: z.array(z.string()),
+    players: z.array(zLobbyListParticipant).default([]),
     timeControl: zGameTimeControl,
+    rated: z.boolean().default(false),
     startedAt: zTimestamp.nullable()
 });
 export type LobbyInfo = z.infer<typeof zLobbyInfo>;
@@ -245,7 +258,9 @@ export type GameMove = z.infer<typeof zGameMove>;
 export const zDatabaseGamePlayer = z.object({
     playerId: zIdentifier,
     displayName: z.string(),
-    profileId: zIdentifier
+    profileId: zIdentifier,
+    elo: z.number().int().nullable().default(null),
+    eloChange: z.number().int().nullable().default(null)
 });
 export type DatabaseGamePlayer = z.infer<typeof zDatabaseGamePlayer>;
 
@@ -439,9 +454,9 @@ export const zLeaderboardPlayer = z.object({
     profileId: zIdentifier,
     displayName: z.string(),
     image: z.string().nullable(),
+    elo: z.number().int().nonnegative(),
     gamesPlayed: z.number().int().nonnegative(),
-    gamesWon: z.number().int().nonnegative(),
-    winRatio: z.number().min(0).max(1)
+    gamesWon: z.number().int().nonnegative()
 });
 export type LeaderboardPlayer = z.infer<typeof zLeaderboardPlayer>;
 

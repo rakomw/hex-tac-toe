@@ -216,6 +216,44 @@ export class GameHistoryRepository {
         }
     }
 
+    async updatePlayerEloChanges(gameId: string, playerEloChanges: Map<string, number>): Promise<void> {
+        if (playerEloChanges.size === 0) {
+            return;
+        }
+
+        const collection = await this.getCollection();
+        const setEntries = Array.from(playerEloChanges.values()).map((eloChange, index) => [
+            `players.$[player${index}].eloChange`,
+            eloChange
+        ] as const);
+
+        try {
+            const updateResult = await collection.updateOne(
+                { id: gameId },
+                {
+                    $set: Object.fromEntries(setEntries)
+                },
+                {
+                    arrayFilters: Array.from(playerEloChanges.keys()).map((playerId, index) => ({
+                        [`player${index}.playerId`]: playerId
+                    }))
+                }
+            );
+
+            if (updateResult.matchedCount === 0) {
+                this.logMissingHistory('game-history-elo-update-error', gameId);
+            }
+        } catch (error: unknown) {
+            this.logger.error({
+                err: error,
+                type: 'game-history',
+                event: 'game-history-elo-update-error',
+                storage: 'mongodb',
+                gameId
+            }, 'Failed to update stored player elo changes');
+        }
+    }
+
     async listFinishedGames(options: ListFinishedGamesOptions = {}): Promise<FinishedGamesPage> {
         const collection = await this.getCollection();
         const pageSize = this.normalizePageSize(options.pageSize);
@@ -340,7 +378,10 @@ export class GameHistoryRepository {
         return players.map((player) => player.profileId);
     }
 
-    async getLeaderboardStatsForPlayers(profileIds: string[]): Promise<Map<string, PlayerLeaderboardStats>> {
+    async getPlayerLeaderboardStatsForPlayers(
+        profileIds: string[],
+        options: { ratedOnly: boolean }
+    ): Promise<Map<string, PlayerLeaderboardStats>> {
         const uniqueProfileIds = Array.from(new Set(profileIds.filter((profileId) => profileId.trim().length > 0)));
         if (uniqueProfileIds.length === 0) {
             return new Map();
@@ -348,7 +389,7 @@ export class GameHistoryRepository {
 
         const collection = await this.getCollection();
         const players = await collection.aggregate<PlayerLeaderboardStats>([
-            ...this.createPlayerLeaderboardStatsPipeline(),
+            ...this.createPlayerLeaderboardStatsPipeline(options),
             {
                 $match: {
                     profileId: {
@@ -587,7 +628,9 @@ export class GameHistoryRepository {
         return playerIds.map((playerId, playerIndex) => ({
             playerId,
             displayName: document.playerNames?.[playerId]?.trim() || `Player ${playerIndex + 1}`,
-            profileId: document.playerProfileIds?.[playerId] ?? playerId
+            profileId: document.playerProfileIds?.[playerId] ?? playerId,
+            elo: null,
+            eloChange: null
         }));
     }
 
@@ -642,13 +685,14 @@ export class GameHistoryRepository {
         return Math.max(0, Math.floor(baseTimestamp));
     }
 
-    private createPlayerLeaderboardStatsPipeline(): Document[] {
+    private createPlayerLeaderboardStatsPipeline(options: { ratedOnly?: boolean } = {}): Document[] {
         return [
             {
                 $match: {
+                    ...(options.ratedOnly ? { 'gameOptions.rated': true } : {}),
                     finishedAt: {
                         $ne: null
-                    }
+                    },
                 }
             },
             {

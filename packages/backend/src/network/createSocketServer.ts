@@ -370,7 +370,7 @@ export class SocketServerGateway {
         const user = await this.authService.getCurrentUserFromSocket(socket)
             ?? this.createGuestUser(socket);
 
-        const joinResult = this.sessionManager.joinSession({
+        const joinResult = await this.sessionManager.joinSession({
             sessionId,
             socketId: socket.id,
             client: parseSocketClientInfo(socket),
