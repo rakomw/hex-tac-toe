@@ -11,6 +11,10 @@ export interface HexCoordinate {
 const zTimestamp = z.number().int();
 const zCoordinate = z.number().int();
 const zIdentifier = z.string();
+export const zHexCoordinate = z.object({
+    x: zCoordinate,
+    y: zCoordinate
+});
 
 export const zUserRole = z.enum(['user', 'admin']);
 export type UserRole = z.infer<typeof zUserRole>;
@@ -159,6 +163,7 @@ export function isCellWithinPlacementRadius(
 
 export const GameState = z.object({
     cells: z.array(zBoardCell),
+    highlightedCells: z.array(zHexCoordinate),
     playerTiles: z.record(z.string(), zPlayerTileConfig),
     currentTurnPlayerId: zIdentifier.nullable(),
     placementsRemaining: z.number().int().nonnegative(),

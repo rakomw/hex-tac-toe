@@ -38,6 +38,7 @@ export class GameSimulation {
 
     startSession(session: ServerGameSession, onTurnExpired: TurnExpiredHandler, startedAt = Date.now()): void {
         session.boardState.playerTiles = buildPlayerTileConfigMap(session.players.map((player) => player.id));
+        session.boardState.highlightedCells = [];
         this.initializePlayerClocks(session);
         this.setTurn(session, session.players[0]?.id ?? null, 1, startedAt);
         this.syncTurnTimeout(session, onTurnExpired);
@@ -49,6 +50,7 @@ export class GameSimulation {
             gameId: session.currentGameId,
             gameState: {
                 cells: this.getBoardCells(session),
+                highlightedCells: session.boardState.highlightedCells.map((cell) => ({ ...cell })),
                 playerTiles: Object.fromEntries(
                     Object.entries(session.boardState.playerTiles).map(([playerId, playerTileConfig]) => [playerId, { ...playerTileConfig }])
                 ),
@@ -89,6 +91,7 @@ export class GameSimulation {
         }
 
         this.applyMoveTimeControl(session, playerId, timestamp);
+        const isFirstPlacementOfTurn = session.moveHistory.length === 0 || session.boardState.placementsRemaining === 2;
 
         const move: GameMove = {
             moveNumber: session.moveHistory.length + 1,
@@ -103,6 +106,9 @@ export class GameSimulation {
             y,
             occupiedBy: zCellOccupant.parse(playerId)
         });
+        session.boardState.highlightedCells = isFirstPlacementOfTurn
+            ? [{ x, y }]
+            : [...session.boardState.highlightedCells, { x, y }].slice(-2);
         session.moveHistory.push(move);
 
         if (this.hasSixInARow(session, playerId, x, y)) {

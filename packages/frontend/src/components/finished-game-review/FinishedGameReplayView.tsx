@@ -52,6 +52,7 @@ function buildReplayBoardState(game: FinishedGameRecord, visibleMoveCount: numbe
       y: move.y,
       occupiedBy: move.playerId as CellOccupant
     })),
+    highlightedCells: [],
     playerTiles: game.playerTiles,
     currentTurnPlayerId: null,
     placementsRemaining: 0,

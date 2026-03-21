@@ -55,6 +55,7 @@ interface LiveGameStoreState {
 function createEmptyGameState(): GameState {
   return {
     cells: [],
+    highlightedCells: [],
     playerTiles: {},
     currentTurnPlayerId: null,
     placementsRemaining: 0,
@@ -67,6 +68,7 @@ function cloneGameState(gameState: GameState): GameState {
   return {
     ...gameState,
     cells: gameState.cells.map(cell => ({ ...cell })),
+    highlightedCells: gameState.highlightedCells.map(cell => ({ ...cell })),
     playerTiles: Object.fromEntries(
       Object.entries(gameState.playerTiles).map(([playerId, playerTileConfig]) => [playerId, { ...playerTileConfig }])
     ),

@@ -154,6 +154,7 @@ export function cloneGameBoard(boardState: GameState): GameState {
     return {
         ...boardState,
         cells: boardState.cells.map((cell) => ({ ...cell })),
+        highlightedCells: boardState.highlightedCells.map((cell) => ({ ...cell })),
         playerTiles: Object.fromEntries(
             Object.entries(boardState.playerTiles).map(([playerId, playerTileConfig]) => [playerId, { ...playerTileConfig }])
         ),
@@ -177,6 +178,7 @@ export function createGameSession(
         moveHistory: [],
         boardState: {
             cells: [],
+            highlightedCells: [],
             playerTiles: {},
             currentTurnPlayerId: null,
             placementsRemaining: 0,

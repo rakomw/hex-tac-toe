@@ -67,6 +67,7 @@ function GameScreen({
     resetView
   } = useGameBoard({
     boardState: gameState,
+    highlightedCells: gameState.highlightedCells,
     localPlayerId: isSpectator ? null : currentPlayerId,
     interactionEnabled,
     onPlaceCell: canPlaceCell ? onPlaceCell : undefined
