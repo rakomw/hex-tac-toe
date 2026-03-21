@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import GameBoardCanvas from '../game-screen/GameBoardCanvas'
 import useGameBoard from '../game-screen/useGameBoard'
 import { getPlayerLabel, getPlayerTileColor } from '../game-screen/gameBoardUtils'
+import { formatTimeControl } from '../../lobbyOptions'
 import FinishedGameReviewLayout from './FinishedGameReviewLayout'
 
 interface FinishedGameReplayViewProps {
@@ -234,44 +235,55 @@ function FinishedGameReplayView({
         </section>
 
         <aside className="flex min-h-[34rem] min-w-0 flex-col gap-4 overflow-hidden xl:min-h-0">
-          <section className="min-w-0 shrink-0 rounded-[2rem] border border-white/10 bg-white/6 p-5 shadow-[0_20px_80px_rgba(15,23,42,0.45)] backdrop-blur">
-            <div className="text-sm uppercase tracking-[0.3em] text-slate-300">Match Summary</div>
-            <div className="mt-4 grid gap-3">
-              <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4">
-                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Result</div>
-                <div className="mt-1 text-xl font-bold text-white">{getFinishReasonLabel(gameResult?.reason)}</div>
-              </div>
-              <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4">
-                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Duration</div>
-                <div className="mt-1 text-xl font-bold text-white">{formatElapsed(gameResult?.durationMs ?? 0)}</div>
-              </div>
-              <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4">
-                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Winner</div>
-                <div className="mt-1 text-xl font-bold text-white">
-                  {gameResult?.winningPlayerId ? getPlayerLabel(game.players, gameResult.winningPlayerId) : 'No winner'}
-                </div>
-              </div>
-              <div className="rounded-3xl border border-white/10 bg-slate-950/55 p-4">
-                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Finished</div>
-                <div className="mt-1 text-sm leading-6 text-slate-200">
+          <section className="flex-shrink-0 min-h-0 min-w-0 flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/55 p-5 shadow-[0_20px_80px_rgba(15,23,42,0.45)] backdrop-blur">
+            <div className="text-sm uppercase tracking-[0.3em] text-slate-300 ">Match Summary</div>
+            <div className="mt-4 grid gap-4">
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Finished</div>
+                <div className="mt-1 text-sm text-white">
                   {formatDateTime(game.finishedAt ?? game.startedAt)}
                 </div>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {game.players.map((player) => (
-                <div
-                  key={player.playerId}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-200"
-                >
-                  <span
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: getPlayerTileColor(game.playerTiles, player.playerId) }}
-                  />
-                  <span>{getPlayerLabel(game.players, player.playerId)}</span>
+                <div className="mt-1 text-sm text-white">
+                  Duration {formatElapsed(gameResult?.durationMs ?? 0)}
                 </div>
-              ))}
+              </div>
+
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Time Control</div>
+                <div className="mt-1 text-sm text-white">
+                  {formatTimeControl(game.gameOptions.timeControl)}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Reason</div>
+                <div className="mt-1 text-sm text-white">
+                  {getFinishReasonLabel(gameResult?.reason)}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Players</div>
+                <div className="mt-1.5 space-y-0.5">
+                  {game.players.map((player) => (
+                    <div
+                      key={player.playerId}
+                      className={`flex items-center gap-2 py-px text-sm text-white`}
+                    >
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: getPlayerTileColor(game.playerTiles, player.playerId) }}
+                      />
+                      <span>{getPlayerLabel(game.players, player.playerId)}</span>
+                      {gameResult?.winningPlayerId === player.playerId && (
+                        <span className="rounded-full border border-amber-200/30 bg-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-black">
+                          Winner
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
 
