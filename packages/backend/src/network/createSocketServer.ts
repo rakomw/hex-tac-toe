@@ -15,27 +15,32 @@ import { z } from 'zod';
 import { AuthService } from '../auth/authService';
 import { BackgroundWorkerHub } from '../background/backgroundWorkers';
 import { ROOT_LOGGER } from '../logger';
-import { getSocketClientInfo } from './clientInfo';
+import { getSocketClientInfo as parseSocketClientInfo } from './clientInfo';
 import { CorsConfiguration } from './cors';
 import { SessionError, SessionManager } from '../session/sessionManager';
 import type {
+    ClientGameParticipation,
     JoinSessionResult,
     ParticipantJoinedEvent,
     ParticipantLeftEvent,
     PublicGameStatePayload,
     SessionUpdatedEvent,
 } from '../session/types';
+import { inspect } from 'node:util';
 
 type Participation = {
     sessionId: string,
     participantId: string,
 };
 
+type ClientSocket = Socket<ClientToServerEvents, ServerToClientEvents>;
+
 @injectable()
 export class SocketServerGateway {
     private static readonly LOBBY_LIST_DEBOUNCE_MS = 1_000;
     private readonly logger: Logger;
     private readonly socketParticipations = new Map<string, Participation>();
+    private readonly connections = new Map<string, ClientSocket>();
     private pendingLobbyList: LobbyInfo[] | null = null;
     private lobbyListBroadcastTimer: ReturnType<typeof setTimeout> | null = null;
     private io?: Server<ClientToServerEvents, ServerToClientEvents>;
@@ -77,186 +82,210 @@ export class SocketServerGateway {
         });
 
         io.on('connection', (socket) => {
-            const clientInfo = getSocketClientInfo(socket);
-
-            const reclaimedSession = this.sessionManager.reclaimSessionFromDeviceId(clientInfo.deviceId ?? "", socket.id);
-            if (reclaimedSession) {
-                this.socketParticipations.set(socket.id, {
-                    sessionId: reclaimedSession.session.id,
-                    participantId: reclaimedSession.participantId
-                });
-
-                socket.join(reclaimedSession.session.id);
-                socket.emit('session-joined', {
-                    sessionId: reclaimedSession.session.id,
-                    session: reclaimedSession.session,
-                    participantId: reclaimedSession.participantId
-                });
-
-                if (reclaimedSession.gameState) {
-                    socket.emit('game-state', reclaimedSession.gameState);
-                }
+            try {
+                this.handleConnection(socket);
+            } catch (error: unknown) {
+                logSocketActionFailure(this.logger, 'connect', socket, error);
+                socket.emit('error', getSocketErrorMessage(error));
+                return;
             }
-
-            this.logger.debug({
-                event: 'socket.connected',
-                socketId: socket.id,
-                reconnect: Boolean(reclaimedSession),
-                client: clientInfo
-            }, 'Socket connected');
-
-            this.backgroundWorkers.track('site-visited', { client: clientInfo });
-            socket.emit('lobby-list', this.sessionManager.listLobbyInfo());
-            socket.emit('shutdown-updated', this.sessionManager.getShutdownState());
-
-            socket.on('join-session', async (request) => {
-                let sessionId: string;
-                try {
-                    sessionId = zJoinSessionRequest.parse(request).sessionId;
-                } catch {
-                    socket.emit('error', 'Invalid session request.');
-                    return;
-                }
-
-                try {
-                    const joinResult = await this.socketJoinSession(socket, sessionId);
-                    if (joinResult.participantRole === 'player' && joinResult.isNewParticipant) {
-                        await this.sessionManager.activateSession(sessionId);
-                    }
-
-                    this.logger.info({
-                        event: 'socket.joined-session',
-                        socketId: socket.id,
-                        sessionId,
-                        role: joinResult.participantRole,
-                        state: joinResult.session.state,
-                        isNewParticipant: joinResult.isNewParticipant
-                    }, 'Socket joined session');
-                } catch (error: unknown) {
-                    logSocketActionFailure(this.logger, 'join-session', socket, error, { sessionId });
-                    socket.emit('error', getSocketErrorMessage(error));
-                }
-            });
-
-            socket.on('leave-session', () => {
-                const participation = this.socketParticipations.get(socket.id);
-                if (!participation) {
-                    return;
-                }
-
-                this.socketParticipations.delete(socket.id);
-                socket.leave(participation.sessionId);
-                this.sessionManager.leaveSession(participation.sessionId, participation.participantId, 'leave-session');
-            });
-
-            socket.on('surrender-session', () => {
-                try {
-                    const { sessionId, participantId } = this.requireParticipation(socket.id);
-                    this.sessionManager.surrenderSession(sessionId, participantId);
-                } catch (error: unknown) {
-                    logSocketActionFailure(this.logger, 'surrender-session', socket, error);
-                    socket.emit('error', getSocketErrorMessage(error));
-                }
-            });
-
-            socket.on('request-rematch', async () => {
-                try {
-                    const { sessionId, participantId } = this.requireParticipation(socket.id);
-                    const rematch = this.sessionManager.requestRematch(sessionId, participantId);
-                    if (rematch.status !== 'ready') {
-                        return;
-                    }
-
-                    const spectatorIds = this.getDistinctSpectatorIds(io, sessionId, rematch.players);
-                    const nextSession = this.sessionManager.createRematchSession(sessionId, spectatorIds);
-                    for (const playerId of rematch.players) {
-                        const playerSocket = this.getSocketForSessionParticipant(io, sessionId, playerId);
-                        if (!playerSocket) {
-                            continue;
-                        }
-
-                        this.socketParticipations.set(playerSocket.id, {
-                            sessionId: nextSession.sessionId,
-                            participantId: playerId
-                        });
-                        playerSocket.leave(sessionId);
-                        playerSocket.join(nextSession.sessionId);
-                        playerSocket.emit('session-joined', {
-                            sessionId: nextSession.sessionId,
-                            session: nextSession.session,
-                            participantId: playerId
-                        });
-                    }
-
-                    for (const spectatorId of spectatorIds) {
-                        const spectatorSocket = this.getSocketForSessionParticipant(io, sessionId, spectatorId);
-                        if (!spectatorSocket) {
-                            continue;
-                        }
-
-                        this.socketParticipations.set(spectatorSocket.id, {
-                            sessionId: nextSession.sessionId,
-                            participantId: spectatorId
-                        });
-                        spectatorSocket.leave(sessionId);
-                        spectatorSocket.join(nextSession.sessionId);
-                        spectatorSocket.emit('session-joined', {
-                            sessionId: nextSession.sessionId,
-                            session: nextSession.session,
-                            participantId: spectatorId
-                        });
-                    }
-
-                    await this.sessionManager.activateSession(nextSession.sessionId);
-                } catch (error: unknown) {
-                    logSocketActionFailure(this.logger, 'request-rematch', socket, error);
-                    socket.emit('error', getSocketErrorMessage(error));
-                }
-            });
-
-            socket.on('cancel-rematch', () => {
-                try {
-                    const { sessionId, participantId } = this.requireParticipation(socket.id);
-                    this.sessionManager.cancelRematch(sessionId, participantId);
-                } catch (error: unknown) {
-                    logSocketActionFailure(this.logger, 'cancel-rematch', socket, error);
-                    socket.emit('error', getSocketErrorMessage(error));
-                }
-            });
-
-            socket.on('place-cell', (data) => {
-                let parsedRequest: z.infer<typeof zPlaceCellRequest>;
-                try {
-                    parsedRequest = zPlaceCellRequest.parse(data);
-                } catch {
-                    socket.emit('error', 'Invalid move request.');
-                    return;
-                }
-
-                try {
-                    const { sessionId, participantId } = this.requireParticipation(socket.id);
-                    this.sessionManager.placeCell(sessionId, participantId, parsedRequest.x, parsedRequest.y);
-                } catch (error: unknown) {
-                    logSocketActionFailure(this.logger, 'place-cell', socket, error, {
-                        x: parsedRequest.x,
-                        y: parsedRequest.y
-                    });
-                    socket.emit('error', getSocketErrorMessage(error));
-                }
-            });
-
-            socket.on('disconnect', () => {
-                this.logger.debug({
-                    event: 'socket.disconnected',
-                    socketId: socket.id
-                }, 'Socket disconnected');
-
-                this.socketParticipations.delete(socket.id);
-                this.sessionManager.handleSocketDisconnect(socket.id);
-            });
         });
 
         this.io = io;
+    }
+
+    private handleConnection(socket: ClientSocket) {
+        const clientInfo = parseSocketClientInfo(socket);
+
+        this.logger.debug({
+            event: 'socket.connected',
+            socketId: socket.id,
+            client: clientInfo
+        }, 'Socket connected');
+
+        /* identify the connection and ensure we only have one connection of that client */
+        const connectionId = `${clientInfo.deviceId}:${clientInfo.ephemeralClientId}`;
+        if (this.connections.has(connectionId)) {
+            const oldConnection = this.connections.get(connectionId)!;
+            const reclaimedParticipation = this.sessionManager.transferConnection(oldConnection.id, socket.id);
+            if (reclaimedParticipation) {
+                this.putClientInGameState(socket, reclaimedParticipation)
+            }
+        }
+
+        /* store the connection */
+        this.connections.set(`${clientInfo.deviceId}:${clientInfo.ephemeralClientId}`, socket)
+
+        /* reclaim a game by the device id */
+        {
+            const reclaimedSession = this.sessionManager.reclaimSessionFromDeviceId(clientInfo.deviceId ?? "", socket.id);
+            if (reclaimedSession) {
+                this.putClientInGameState(socket, reclaimedSession);
+            }
+        }
+
+        this.backgroundWorkers.track('site-visited', { client: clientInfo });
+        socket.emit('lobby-list', this.sessionManager.listLobbyInfo());
+        socket.emit('shutdown-updated', this.sessionManager.getShutdownState());
+
+        socket.on('join-session', async (request) => {
+            let sessionId: string;
+            try {
+                sessionId = zJoinSessionRequest.parse(request).sessionId;
+            } catch {
+                socket.emit('error', 'Invalid session request.');
+                return;
+            }
+
+            try {
+                const joinResult = await this.socketJoinSession(socket, sessionId);
+                if (joinResult.participantRole === 'player' && joinResult.isNewParticipant) {
+                    await this.sessionManager.activateSession(sessionId);
+                }
+
+                this.logger.info({
+                    event: 'socket.joined-session',
+                    socketId: socket.id,
+                    sessionId,
+                    role: joinResult.participantRole,
+                    state: joinResult.session.state,
+                    isNewParticipant: joinResult.isNewParticipant
+                }, 'Socket joined session');
+            } catch (error: unknown) {
+                logSocketActionFailure(this.logger, 'join-session', socket, error, { sessionId });
+                socket.emit('error', getSocketErrorMessage(error));
+            }
+        });
+
+        socket.on('leave-session', () => {
+            const participation = this.socketParticipations.get(socket.id);
+            if (!participation) {
+                return;
+            }
+
+            this.socketParticipations.delete(socket.id);
+            socket.leave(participation.sessionId);
+            this.sessionManager.leaveSession(participation.sessionId, participation.participantId, 'leave-session');
+        });
+
+        socket.on('surrender-session', () => {
+            try {
+                const { sessionId, participantId } = this.requireParticipation(socket.id);
+                this.sessionManager.surrenderSession(sessionId, participantId);
+            } catch (error: unknown) {
+                logSocketActionFailure(this.logger, 'surrender-session', socket, error);
+                socket.emit('error', getSocketErrorMessage(error));
+            }
+        });
+
+        socket.on('request-rematch', async () => {
+            try {
+                const { sessionId, participantId } = this.requireParticipation(socket.id);
+                const rematch = this.sessionManager.requestRematch(sessionId, participantId);
+                if (rematch.status !== 'ready') {
+                    return;
+                }
+
+                const spectatorIds = this.getDistinctSpectatorIds(this.io!, sessionId, rematch.players);
+                const nextSession = this.sessionManager.createRematchSession(sessionId, spectatorIds);
+                for (const playerId of rematch.players) {
+                    const playerSocket = this.getSocketForSessionParticipant(this.io!, sessionId, playerId);
+                    if (!playerSocket) {
+                        continue;
+                    }
+
+                    this.socketParticipations.set(playerSocket.id, {
+                        sessionId: nextSession.sessionId,
+                        participantId: playerId
+                    });
+                    playerSocket.leave(sessionId);
+                    playerSocket.join(nextSession.sessionId);
+                    playerSocket.emit('session-joined', {
+                        sessionId: nextSession.sessionId,
+                        session: nextSession.session,
+                        participantId: playerId
+                    });
+                }
+
+                for (const spectatorId of spectatorIds) {
+                    const spectatorSocket = this.getSocketForSessionParticipant(this.io!, sessionId, spectatorId);
+                    if (!spectatorSocket) {
+                        continue;
+                    }
+
+                    this.socketParticipations.set(spectatorSocket.id, {
+                        sessionId: nextSession.sessionId,
+                        participantId: spectatorId
+                    });
+                    spectatorSocket.leave(sessionId);
+                    spectatorSocket.join(nextSession.sessionId);
+                    spectatorSocket.emit('session-joined', {
+                        sessionId: nextSession.sessionId,
+                        session: nextSession.session,
+                        participantId: spectatorId
+                    });
+                }
+
+                await this.sessionManager.activateSession(nextSession.sessionId);
+            } catch (error: unknown) {
+                logSocketActionFailure(this.logger, 'request-rematch', socket, error);
+                socket.emit('error', getSocketErrorMessage(error));
+            }
+        });
+
+        socket.on('cancel-rematch', () => {
+            try {
+                const { sessionId, participantId } = this.requireParticipation(socket.id);
+                this.sessionManager.cancelRematch(sessionId, participantId);
+            } catch (error: unknown) {
+                logSocketActionFailure(this.logger, 'cancel-rematch', socket, error);
+                socket.emit('error', getSocketErrorMessage(error));
+            }
+        });
+
+        socket.on('place-cell', (data) => {
+            let parsedRequest: z.infer<typeof zPlaceCellRequest>;
+            try {
+                parsedRequest = zPlaceCellRequest.parse(data);
+            } catch {
+                socket.emit('error', 'Invalid move request.');
+                return;
+            }
+
+            try {
+                const { sessionId, participantId } = this.requireParticipation(socket.id);
+                this.sessionManager.placeCell(sessionId, participantId, parsedRequest.x, parsedRequest.y);
+            } catch (error: unknown) {
+                logSocketActionFailure(this.logger, 'place-cell', socket, error, {
+                    x: parsedRequest.x,
+                    y: parsedRequest.y
+                });
+                socket.emit('error', getSocketErrorMessage(error));
+            }
+        });
+
+        socket.on('disconnect', () => {
+            if (this.connections.get(connectionId) === socket) {
+                /* connection terminated compeltely */
+                this.connections.delete(connectionId);
+            } else {
+                /* 
+                 * Connection has been overridden.
+                 * The old (this) connection has been closed.
+                 * 
+                 * The following next code should not cause any issues as
+                 * all data should have been transferred onto the new socket id.
+                 */
+            }
+
+            this.logger.debug({
+                event: 'socket.disconnected',
+                socketId: socket.id
+            }, 'Socket disconnected');
+
+            this.socketParticipations.delete(socket.id);
+            this.sessionManager.handleSocketDisconnect(socket.id);
+        });
     }
 
     public getConnectedClientCount() {
@@ -343,33 +372,18 @@ export class SocketServerGateway {
         const joinResult = this.sessionManager.joinSession({
             sessionId,
             socketId: socket.id,
-            client: getSocketClientInfo(socket),
+            client: parseSocketClientInfo(socket),
             user,
         });
 
-        this.socketParticipations.set(socket.id, {
-            sessionId,
-            participantId: joinResult.participantId
-        });
-
-        socket.join(sessionId);
-        socket.emit('session-joined', {
-            sessionId,
-            session: joinResult.session,
-            participantId: joinResult.participantId
-        });
-
-        if (joinResult.gameState) {
-            socket.emit('game-state', joinResult.gameState);
-        }
-
+        this.putClientInGameState(socket, joinResult)
         return joinResult;
     }
 
     private createGuestUser(
         socket: Socket<ClientToServerEvents, ServerToClientEvents>
     ): import('../auth/authRepository').AccountUserProfile {
-        const clientInfo = getSocketClientInfo(socket);
+        const clientInfo = parseSocketClientInfo(socket);
         const guestSeed = clientInfo.deviceId ?? randomUUID();
         const fallbackSuffix = guestSeed.replace(/[^a-z0-9]/gi, '').slice(0, 4).toUpperCase() || 'PLAY';
 
@@ -423,6 +437,24 @@ export class SocketServerGateway {
         clearTimeout(this.lobbyListBroadcastTimer);
         this.lobbyListBroadcastTimer = null;
         this.pendingLobbyList = null;
+    }
+
+    private putClientInGameState(socket: ClientSocket, participation: ClientGameParticipation) {
+        this.socketParticipations.set(socket.id, {
+            sessionId: participation.session.id,
+            participantId: participation.participantId
+        });
+
+        socket.join(participation.session.id);
+        socket.emit('session-joined', {
+            sessionId: participation.session.id,
+            session: participation.session,
+            participantId: participation.participantId
+        });
+
+        if (participation.gameState) {
+            socket.emit('game-state', participation.gameState);
+        }
     }
 }
 

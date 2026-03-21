@@ -29,6 +29,7 @@ import type {
     ServerGameSession,
     ServerSessionParticipant,
     PublicGameStatePayload,
+    ClientGameParticipation,
 } from './types';
 import {
     cloneGameBoard,
@@ -790,7 +791,33 @@ export class SessionManager {
         return null;
     }
 
-    reclaimSessionFromDeviceId(deviceId: string, socketId: string): { session: SessionInfo, gameState: PublicGameStatePayload, participantId: string } | null {
+    transferConnection(oldSocketId: string, newSocketId: string): ClientGameParticipation | null {
+        const info = this.findParticipationFromSocketId(oldSocketId);
+        if (!info) {
+            return null;
+        }
+
+        assert(info.participation.connection.status === "connected");
+        assert(info.participation.connection.socketId === oldSocketId);
+        info.participation.connection.socketId = newSocketId;
+
+        this.logger.info({
+            event: 'session.connection-transferred',
+            sessionId: info.session.id,
+            participantId: info.participationId,
+            participantRole: info.participationRole,
+            oldSocketId,
+            newSocketId
+        }, 'Transferred session connection to new socket');
+
+        return {
+            session: this.toSessionInfo(info.session),
+            gameState: this.simulation.getPublicGameState(info.session),
+            participantId: info.participationId
+        }
+    }
+
+    reclaimSessionFromDeviceId(deviceId: string, socketId: string): ClientGameParticipation | null {
         const info = this.findOrphanedParticipation(deviceId);
         if (!info) {
             return null;
@@ -803,6 +830,15 @@ export class SessionManager {
             status: "connected",
             socketId
         };
+
+        this.logger.info({
+            event: 'session.connection-reclaimed',
+            sessionId: info.session.id,
+            participantId: info.participantId,
+            participantRole: info.participantRole,
+            deviceId,
+            socketId
+        }, 'Reclaimed orphaned session connection from device');
 
         this.emitSessionUpdated(info.session);
 

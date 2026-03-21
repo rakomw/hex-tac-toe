@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 import type { Socket } from 'socket.io';
-import type { ClientToServerEvents, ServerToClientEvents } from '@ih3t/shared';
+import { zSocketIOClientAuthPayload, type ClientToServerEvents, type ServerToClientEvents } from '@ih3t/shared';
 
 export interface RequestClientInfo {
     deviceId: string | null;
@@ -12,6 +12,7 @@ export interface RequestClientInfo {
 
 export interface SocketClientInfo extends RequestClientInfo {
     socketId: string;
+    ephemeralClientId: string;
 }
 
 function getHeaderValue(value: string | string[] | undefined): string | null {
@@ -57,15 +58,14 @@ export function getRequestClientInfo(request: Request): RequestClientInfo {
 }
 
 export function getSocketClientInfo(socket: Socket<ClientToServerEvents, ServerToClientEvents>): SocketClientInfo {
-    const authDeviceId = typeof socket.handshake.auth.deviceId === 'string'
-        ? socket.handshake.auth.deviceId
-        : null;
-    const cookieDeviceId = getCookieValue(getHeaderValue(socket.handshake.headers.cookie), 'ih3t_device_id');
-
+    const { deviceId, ephemeralClientId } = zSocketIOClientAuthPayload.parse(socket.handshake.auth);
     return {
-        deviceId: authDeviceId ?? cookieDeviceId,
+        deviceId,
+        ephemeralClientId,
+
         socketId: socket.id,
         ip: socket.handshake.address ?? null,
+
         userAgent: getHeaderValue(socket.handshake.headers['user-agent']),
         origin: getHeaderValue(socket.handshake.headers.origin),
         referer: getHeaderValue(socket.handshake.headers.referer)

@@ -103,6 +103,27 @@ async function main() {
     process.exit(0);
 }
 
+process.on("unhandledrejection", rejection => {
+    rejection.preventDefault();
+    bootstrapLogger.error(
+        {
+            event: 'server.unhandled-rejection',
+            rejection
+        },
+        'Unhandled promise rejection'
+    );
+});
+
+process.on("uncaughtException", event => {
+    bootstrapLogger.error(
+        {
+            event: 'server.uncaught-exception',
+            exception: event
+        },
+        'Unhandled promise rejection'
+    );
+});
+
 void main().catch((error: unknown) => {
     bootstrapLogger.fatal({
         err: error,

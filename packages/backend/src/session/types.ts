@@ -58,12 +58,9 @@ export interface JoinSessionParams {
     user: AccountUserProfile;
 }
 
-export interface JoinSessionResult {
-    participantId: string;
+export interface JoinSessionResult extends ClientGameParticipation {
     participantRole: SessionParticipantRole;
-    session: SessionInfo;
     isNewParticipant: boolean;
-    gameState?: PublicGameStatePayload;
 }
 
 export interface CreateSessionParams {
@@ -108,6 +105,13 @@ export interface RematchSessionResult {
     sessionId: string;
     session: SessionInfo;
 }
+
+export type ClientGameParticipation = {
+    session: SessionInfo,
+    participantId: string
+
+    gameState?: PublicGameStatePayload,
+};
 
 export function cloneGameOptions(gameOptions: LobbyOptions): LobbyOptions {
     return {

@@ -48,7 +48,8 @@ export function startLiveGameClient() {
   shouldHandleDisconnect = true
   socket = io(socketUrl, {
     auth: {
-      deviceId
+      deviceId,
+      ephemeralClientId: crypto.randomUUID()
     },
     withCredentials: true,
     transports: ["websocket"]
