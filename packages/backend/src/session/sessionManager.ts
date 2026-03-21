@@ -1,4 +1,5 @@
 import type {
+    PlayerTileConfig,
     CreateSessionResponse,
     DatabaseGameResult,
     LobbyInfo,
@@ -7,6 +8,7 @@ import type {
     SessionParticipantRole,
     ShutdownState
 } from '@ih3t/shared';
+import { buildPlayerTileConfigMap } from '@ih3t/shared';
 import { randomUUID } from 'node:crypto';
 import assert from 'node:assert';
 import type { Logger } from 'pino';
@@ -930,6 +932,7 @@ export class SessionManager {
         const gameId = await this.gameHistoryRepository.createGame(
             session.id,
             this.buildDatabasePlayers(session),
+            this.buildPlayerTiles(session),
             session.gameOptions
         );
         session.currentGameId = gameId;
@@ -942,6 +945,10 @@ export class SessionManager {
             displayName: player.displayName || `Player ${playerIndex + 1}`,
             profileId: player.profileId ?? player.id
         }));
+    }
+
+    private buildPlayerTiles(session: ServerGameSession): Record<string, PlayerTileConfig> {
+        return buildPlayerTileConfigMap(session.players.map((player) => player.id));
     }
 
     private maybeShutdownAfterSessionFinished(): void {

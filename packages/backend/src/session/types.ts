@@ -1,5 +1,5 @@
 import type {
-    GameBoard,
+    GameState,
     GameMove,
     LobbyInfo,
     LobbyOptions,
@@ -37,7 +37,7 @@ export interface ServerGameSession {
     startedAt: number | null;
     currentGameId: string;
     moveHistory: GameMove[];
-    boardState: GameBoard;
+    boardState: GameState;
     finishReason: SessionFinishReason | null;
     winningPlayerId: string | null;
     rematchAcceptedPlayerIds: string[];
@@ -48,7 +48,7 @@ export type PlayerLeaveSource = 'leave-session' | 'disconnect';
 export interface PublicGameStatePayload {
     sessionId: string;
     gameId: string;
-    gameState: GameBoard;
+    gameState: GameState;
 }
 
 export interface JoinSessionParams {
@@ -150,10 +150,13 @@ export function cloneStoredParticipants(participants: ServerSessionParticipant[]
     return participants.map((participant) => cloneStoredSessionParticipant(participant));
 }
 
-export function cloneGameBoard(boardState: GameBoard): GameBoard {
+export function cloneGameBoard(boardState: GameState): GameState {
     return {
         ...boardState,
         cells: boardState.cells.map((cell) => ({ ...cell })),
+        playerTiles: Object.fromEntries(
+            Object.entries(boardState.playerTiles).map(([playerId, playerTileConfig]) => [playerId, { ...playerTileConfig }])
+        ),
         playerTimeRemainingMs: { ...boardState.playerTimeRemainingMs }
     };
 }
@@ -174,6 +177,7 @@ export function createGameSession(
         moveHistory: [],
         boardState: {
             cells: [],
+            playerTiles: {},
             currentTurnPlayerId: null,
             placementsRemaining: 0,
             currentTurnExpiresAt: null,

@@ -1,5 +1,5 @@
 import type {
-  GameBoard,
+  GameState,
   ServerToClientEvents,
   SessionInfo,
   ShutdownState
@@ -13,7 +13,7 @@ type GameStatePayload = Parameters<ServerToClientEvents['game-state']>[0]
 
 type ActiveGameState = {
   gameId: string
-  gameState: GameBoard
+  gameState: GameState
 }
 
 type SessionScreen =
@@ -52,9 +52,10 @@ interface LiveGameStoreState {
   resetToLobby: () => void
 }
 
-function createEmptyGameBoard(): GameBoard {
+function createEmptyGameState(): GameState {
   return {
     cells: [],
+    playerTiles: {},
     currentTurnPlayerId: null,
     placementsRemaining: 0,
     currentTurnExpiresAt: null,
@@ -62,10 +63,13 @@ function createEmptyGameBoard(): GameBoard {
   }
 }
 
-function cloneGameBoard(gameState: GameBoard): GameBoard {
+function cloneGameState(gameState: GameState): GameState {
   return {
     ...gameState,
     cells: gameState.cells.map(cell => ({ ...cell })),
+    playerTiles: Object.fromEntries(
+      Object.entries(gameState.playerTiles).map(([playerId, playerTileConfig]) => [playerId, { ...playerTileConfig }])
+    ),
     playerTimeRemainingMs: { ...gameState.playerTimeRemainingMs }
   }
 }
@@ -114,7 +118,7 @@ function deriveGameState(session: SessionInfo): ActiveGameState | null {
 
   return {
     gameId: session.gameId,
-    gameState: createEmptyGameBoard()
+    gameState: createEmptyGameState()
   }
 }
 
@@ -200,7 +204,7 @@ export const useLiveGameStore = create<LiveGameStoreState>()(
         if (!state.screen.game || state.screen.game.gameId !== nextSession.gameId) {
           state.screen.game = {
             gameId: nextSession.gameId,
-            gameState: createEmptyGameBoard()
+            gameState: createEmptyGameState()
           }
         }
       }),
@@ -212,7 +216,7 @@ export const useLiveGameStore = create<LiveGameStoreState>()(
 
         state.screen.game = {
           gameId: payload.gameId,
-          gameState: cloneGameBoard(payload.gameState)
+          gameState: cloneGameState(payload.gameState)
         }
       }),
     resetToLobby: () =>

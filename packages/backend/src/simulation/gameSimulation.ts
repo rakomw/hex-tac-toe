@@ -1,5 +1,6 @@
 import { injectable } from 'tsyringe';
 import {
+    buildPlayerTileConfigMap,
     getCellKey,
     isCellWithinPlacementRadius,
     PLACE_CELL_HEX_RADIUS,
@@ -36,6 +37,7 @@ export class GameSimulation {
     private readonly turnTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
     startSession(session: ServerGameSession, onTurnExpired: TurnExpiredHandler, startedAt = Date.now()): void {
+        session.boardState.playerTiles = buildPlayerTileConfigMap(session.players.map((player) => player.id));
         this.initializePlayerClocks(session);
         this.setTurn(session, session.players[0]?.id ?? null, 1, startedAt);
         this.syncTurnTimeout(session, onTurnExpired);
@@ -47,6 +49,9 @@ export class GameSimulation {
             gameId: session.currentGameId,
             gameState: {
                 cells: this.getBoardCells(session),
+                playerTiles: Object.fromEntries(
+                    Object.entries(session.boardState.playerTiles).map(([playerId, playerTileConfig]) => [playerId, { ...playerTileConfig }])
+                ),
                 currentTurnPlayerId: session.boardState.currentTurnPlayerId,
                 placementsRemaining: session.boardState.placementsRemaining,
                 currentTurnExpiresAt: session.boardState.currentTurnExpiresAt,

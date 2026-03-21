@@ -3,6 +3,7 @@ import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import type { Collection, Document } from 'mongodb';
 import {
+    buildPlayerTileConfigMap,
     type AdminLongestGameInDuration,
     type AdminLongestGameInMoves,
     type DatabaseGame,
@@ -14,7 +15,10 @@ import {
     type FinishedGamesPage,
     type GameMove,
     type LobbyOptions,
+    type PlayerTileConfig,
     zDatabaseGame,
+    zDatabaseGamePlayer,
+    zDatabaseGameResult,
     zFinishedGameRecord,
     zFinishedGamesPage,
     zFinishedGameSummary,
@@ -28,6 +32,24 @@ import { MongoDatabase } from './mongoClient';
 
 const zGameHistoryDocument = zDatabaseGame;
 type GameHistoryDocument = z.infer<typeof zGameHistoryDocument> & Document;
+
+const zVersion2GameHistoryDocument = z.object({
+    _id: z.unknown().optional(),
+    id: z.string(),
+    version: z.literal(2),
+    sessionId: z.string(),
+    startedAt: z.number().int(),
+    finishedAt: z.number().int().nullable(),
+    players: z.array(zDatabaseGamePlayer),
+    gameOptions: zLobbyOptions,
+    moves: z.array(zGameMove),
+    moveCount: z.number().int().nonnegative(),
+    gameResult: zDatabaseGameResult.nullable(),
+    playerTiles: z.record(z.string(), z.object({
+        color: z.string()
+    })).optional()
+});
+type Version2GameHistoryDocument = z.infer<typeof zVersion2GameHistoryDocument> & Document;
 
 const zLegacyGameHistoryDocument = z.object({
     _id: z.unknown().optional(),
@@ -47,6 +69,9 @@ const zLegacyGameHistoryDocument = z.object({
     gameDurationMs: z.number().int().nonnegative().nullable().optional(),
     updatedAt: z.number().int().optional(),
     gameOptions: zLobbyOptions.optional(),
+    playerTiles: z.record(z.string(), z.object({
+        color: z.string()
+    })).optional(),
 });
 type LegacyGameHistoryDocument = z.infer<typeof zLegacyGameHistoryDocument> & Document;
 
@@ -86,7 +111,12 @@ export class GameHistoryRepository {
         this.logger = rootLogger.child({ component: 'game-history-repository' });
     }
 
-    async createGame(sessionId: string, players: DatabaseGamePlayer[], gameOptions: LobbyOptions): Promise<string> {
+    async createGame(
+        sessionId: string,
+        players: DatabaseGamePlayer[],
+        playerTiles: Record<string, PlayerTileConfig>,
+        gameOptions: LobbyOptions
+    ): Promise<string> {
         const collection = await this.getCollection();
         const gameId = randomUUID();
         const startedAt = Date.now();
@@ -94,12 +124,13 @@ export class GameHistoryRepository {
         try {
             await collection.insertOne({
                 id: gameId,
-                version: 2,
+                version: 3,
 
                 sessionId,
                 startedAt,
                 finishedAt: null,
                 players,
+                playerTiles: this.clonePlayerTiles(playerTiles),
                 gameOptions,
                 moves: [],
                 moveCount: 0,
@@ -425,6 +456,7 @@ export class GameHistoryRepository {
             startedAt: parsedDocument.startedAt,
             finishedAt: parsedDocument.finishedAt,
             players: parsedDocument.players.map((player) => ({ ...player })),
+            playerTiles: this.clonePlayerTiles(parsedDocument.playerTiles),
             gameOptions: this.cloneGameOptions(parsedDocument.gameOptions),
             moveCount: parsedDocument.moveCount,
             gameResult: parsedDocument.gameResult
@@ -474,8 +506,10 @@ export class GameHistoryRepository {
         const legacyDocuments = await collection.find({
             $or: [
                 { version: { $exists: false } },
+                { version: 2 },
+                { playerTiles: { $exists: false } }
             ]
-        }).toArray();
+        } as Document).toArray();
 
         if (legacyDocuments.length === 0) {
             return;
@@ -517,6 +551,11 @@ export class GameHistoryRepository {
             return alreadyMigratedDocument.data;
         }
 
+        const version2Document = zVersion2GameHistoryDocument.safeParse(document);
+        if (version2Document.success) {
+            return this.migrateVersion2Document(version2Document.data);
+        }
+
         const legacyDocument = zLegacyGameHistoryDocument.safeParse(document);
         if (!legacyDocument.success) {
             this.logger.warn({
@@ -537,6 +576,9 @@ export class GameHistoryRepository {
             ?? Date.now();
         const finishedAt = parsedDocument.finishedAt ?? null;
         const players = this.mapLegacyPlayers(parsedDocument.players ?? [], parsedDocument);
+        const playerTiles = parsedDocument.playerTiles
+            ? this.clonePlayerTiles(parsedDocument.playerTiles)
+            : buildPlayerTileConfigMap(players.map((player) => player.playerId));
         const moveCount = Math.max(parsedDocument.moveCount ?? 0, moves.length);
         const durationMs = parsedDocument.gameDurationMs
             ?? (finishedAt === null ? null : Math.max(0, finishedAt - startedAt));
@@ -550,18 +592,39 @@ export class GameHistoryRepository {
 
         return zGameHistoryDocument.parse({
             id: parsedDocument.id,
-            version: 2,
+            version: 3,
 
             sessionId: parsedDocument.sessionId,
             startedAt,
             finishedAt,
             players,
+            playerTiles,
             gameOptions: parsedDocument.gameOptions
                 ? this.cloneGameOptions(parsedDocument.gameOptions)
                 : this.createDefaultGameOptions(),
             moves: moves.map((move) => ({ ...move })),
             moveCount,
             gameResult
+        });
+    }
+
+    private migrateVersion2Document(document: Version2GameHistoryDocument): DatabaseGame {
+        return zGameHistoryDocument.parse({
+            id: document.id,
+            version: 3,
+            sessionId: document.sessionId,
+            startedAt: document.startedAt,
+            finishedAt: document.finishedAt,
+            players: document.players.map((player) => ({ ...player })),
+            playerTiles: document.playerTiles
+                ? this.clonePlayerTiles(document.playerTiles)
+                : buildPlayerTileConfigMap(document.players.map((player) => player.playerId)),
+            gameOptions: this.cloneGameOptions(document.gameOptions),
+            moves: document.moves.map((move) => ({ ...move })),
+            moveCount: document.moveCount,
+            gameResult: document.gameResult
+                ? { ...document.gameResult }
+                : null
         });
     }
 
@@ -578,6 +641,12 @@ export class GameHistoryRepository {
             ...gameOptions,
             timeControl: { ...gameOptions.timeControl }
         };
+    }
+
+    private clonePlayerTiles(playerTiles: Record<string, PlayerTileConfig>): Record<string, PlayerTileConfig> {
+        return Object.fromEntries(
+            Object.entries(playerTiles).map(([playerId, playerTileConfig]) => [playerId, { ...playerTileConfig }])
+        );
     }
 
     private createDefaultGameOptions(): LobbyOptions {

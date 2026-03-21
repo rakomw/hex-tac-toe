@@ -4,12 +4,11 @@ import { useEffect, useMemo, useRef } from 'react'
 import {
   DEFAULT_SCALE,
   GRID_LINE_COLOR,
-  ORIGIN_LINE_COLOR,
+  HexCell,
   axialToUnitPoint,
   buildRenderableCells,
   clampScale,
   getCellKey,
-  getPlayerColor,
   getTouchCenter,
   getTouchDistance,
   pixelToAxial,
@@ -43,13 +42,10 @@ interface PinchState {
 
 interface UseGameBoardOptions {
   boardState: BoardState
-  players: string[]
+  highlightedCells?: HexCell[]
+  localPlayerId: string | null
   interactionEnabled: boolean
-  canPlaceCell: boolean
-  isOwnTurn: boolean
-  isSpectator: boolean
-  highlightedCellKeys?: Iterable<string>
-  onPlaceCell: (x: number, y: number) => void
+  onPlaceCell?: (x: number, y: number) => void
 }
 
 interface UseGameBoardResult {
@@ -73,55 +69,48 @@ interface UseGameBoardResult {
 
 function useGameBoard({
   boardState,
-  players,
+  localPlayerId,
   interactionEnabled,
-  canPlaceCell,
-  isOwnTurn,
-  isSpectator,
-  highlightedCellKeys,
-  onPlaceCell
+  onPlaceCell,
+  highlightedCells
 }: Readonly<UseGameBoardOptions>): UseGameBoardResult {
+  const isSpectator = localPlayerId === null
+  const isOwnTurn = localPlayerId !== null && boardState.currentTurnPlayerId === localPlayerId
+  const canPlaceCell = interactionEnabled && Boolean(onPlaceCell) && isOwnTurn
+
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const dragStateRef = useRef<DragState | null>(null)
   const pinchStateRef = useRef<PinchState | null>(null)
   const suppressTouchPlacementRef = useRef(false)
   const lastTouchInteractionAtRef = useRef(0)
+
   const viewRef = useRef<ViewState>({ offsetX: 0, offsetY: 0, scale: DEFAULT_SCALE })
-  const hoveredCellRef = useRef<ReturnType<typeof pixelToAxial> | null>(null)
   const animationFrameRef = useRef<number | null>(null)
+  const hoveredCellRef = useRef<ReturnType<typeof pixelToAxial> | null>(null)
+
   const latestDataRef = useRef<{
     boardState: BoardState
     renderableCells: ReturnType<typeof buildRenderableCells>
-    renderableCellSet: Set<string>
-    cellMap: Map<string, string>
     highlightedCellKeys: Set<string>
-    players: string[]
     interactionEnabled: boolean
     canPlaceCell: boolean
     isOwnTurn: boolean
   } | null>(null)
 
-  const cellMap = useMemo(() => {
-    return new Map(boardState.cells.map((cell) => [getCellKey(cell.x, cell.y), cell.occupiedBy]))
-  }, [boardState.cells])
+  const renderableCells = useMemo(
+    () => buildRenderableCells(boardState.cells, boardState.playerTiles),
+    [boardState.cells, boardState.playerTiles]
+  )
 
-  const renderableCells = useMemo(() => buildRenderableCells(boardState.cells), [boardState.cells])
-
-  const renderableCellSet = useMemo(() => {
-    return new Set(renderableCells.map((cell) => cell.key))
-  }, [renderableCells])
-
-  const highlightedCellKeySet = useMemo(() => {
-    return new Set(highlightedCellKeys ?? [])
-  }, [highlightedCellKeys])
+  const highlightedCellKeys = useMemo(
+    () => new Set((highlightedCells ?? []).map(({ x, y }) => getCellKey(x, y))),
+    [highlightedCells]
+  )
 
   latestDataRef.current = {
     boardState,
     renderableCells,
-    renderableCellSet,
-    cellMap,
-    highlightedCellKeys: highlightedCellKeySet,
-    players,
+    highlightedCellKeys,
     interactionEnabled,
     canPlaceCell,
     isOwnTurn
@@ -153,17 +142,14 @@ function useGameBoard({
     context.clearRect(0, 0, width, height)
     context.fillStyle = '#0f172a'
     context.fillRect(0, 0, width, height)
-    if (!latestData.interactionEnabled || !latestData.isOwnTurn) {
-      context.fillStyle = 'rgba(15, 23, 42, 0.22)'
-      context.fillRect(0, 0, width, height)
-    }
 
     const { offsetX, offsetY, scale } = viewRef.current
     const centerX = width / 2 + offsetX
     const centerY = height / 2 + offsetY
     const hexRadius = scale * 0.92
 
-    for (const cell of latestData.renderableCells) {
+    /* cell grid outlines */
+    for (const cell of latestData.renderableCells.values()) {
       const screenX = centerX + cell.pointX * scale
       const screenY = centerY + cell.pointY * scale
 
@@ -176,51 +162,21 @@ function useGameBoard({
         continue
       }
 
+      /* outline */
       traceHexPath(context, screenX, screenY, hexRadius)
-      context.fillStyle = 'rgba(15, 23, 42, 0.86)'
-      context.fill()
-      context.strokeStyle = cell.x === 0 && cell.y === 0 ? ORIGIN_LINE_COLOR : GRID_LINE_COLOR
-      context.lineWidth = cell.x === 0 && cell.y === 0 ? 1.6 : 1
+      context.strokeStyle = GRID_LINE_COLOR
+      context.lineWidth = 1
       context.stroke()
-    }
 
-    const hoveredCell = hoveredCellRef.current
-    if (hoveredCell && latestData.canPlaceCell) {
-      const hoveredKey = getCellKey(hoveredCell.x, hoveredCell.y)
-      if (latestData.renderableCellSet.has(hoveredKey) && !latestData.cellMap.has(hoveredKey)) {
-        const point = axialToUnitPoint(hoveredCell.x, hoveredCell.y)
-        const screenX = centerX + point.x * scale
-        const screenY = centerY + point.y * scale
-        traceHexPath(context, screenX, screenY, hexRadius)
-        context.fillStyle = 'rgba(125, 211, 252, 0.18)'
+      /* fill color */
+      if (cell.color) {
+        traceHexPath(context, screenX, screenY, hexRadius - 2)
+        context.fillStyle = cell.color
         context.fill()
-        context.strokeStyle = 'rgba(125, 211, 252, 0.55)'
-        context.lineWidth = 1.5
-        context.stroke()
-      }
-    }
-
-    for (const cell of latestData.boardState.cells) {
-      const point = axialToUnitPoint(cell.x, cell.y)
-      const screenX = centerX + point.x * scale
-      const screenY = centerY + point.y * scale
-      const cellKey = getCellKey(cell.x, cell.y)
-      const isHighlighted = latestData.highlightedCellKeys.has(cellKey)
-
-      if (
-        screenX + hexRadius < 0 ||
-        screenY + hexRadius < 0 ||
-        screenX - hexRadius > width ||
-        screenY - hexRadius > height
-      ) {
-        continue
       }
 
-      traceHexPath(context, screenX, screenY, hexRadius - 2)
-      context.fillStyle = getPlayerColor(latestData.players, cell.occupiedBy)
-      context.fill()
-
-      if (isHighlighted) {
+      /* highlight */
+      if (latestData.highlightedCellKeys.has(cell.key)) {
         traceHexPath(context, screenX, screenY, hexRadius - 1)
         context.save()
         context.shadowBlur = Math.max(14, scale * 0.45)
@@ -233,6 +189,23 @@ function useGameBoard({
         traceHexPath(context, screenX, screenY, Math.max(4, hexRadius - 6))
         context.fillStyle = 'rgba(255, 255, 255, 0.12)'
         context.fill()
+      }
+    }
+
+    const hoveredCell = hoveredCellRef.current
+    if (hoveredCell && latestData.canPlaceCell) {
+      const hoveredKey = getCellKey(hoveredCell.x, hoveredCell.y)
+      const renderedCell = latestData.renderableCells.get(hoveredKey)
+      if (renderedCell && !renderedCell.color) {
+        const point = axialToUnitPoint(hoveredCell.x, hoveredCell.y)
+        const screenX = centerX + point.x * scale
+        const screenY = centerY + point.y * scale
+        traceHexPath(context, screenX, screenY, hexRadius)
+        context.fillStyle = 'rgba(125, 211, 252, 0.18)'
+        context.fill()
+        context.strokeStyle = 'rgba(125, 211, 252, 0.55)'
+        context.lineWidth = 1.5
+        context.stroke()
       }
     }
   }
@@ -287,8 +260,8 @@ function useGameBoard({
     }
 
     const cellKey = getCellKey(targetCell.x, targetCell.y)
-    if (latestData.canPlaceCell && latestData.renderableCellSet.has(cellKey) && !latestData.cellMap.has(cellKey)) {
-      onPlaceCell(targetCell.x, targetCell.y)
+    if (latestData.canPlaceCell && latestData.renderableCells.get(cellKey)?.color === null) {
+      onPlaceCell?.(targetCell.x, targetCell.y)
     }
   }
 
@@ -311,7 +284,7 @@ function useGameBoard({
 
   useEffect(() => {
     scheduleDraw()
-  }, [boardState, renderableCells, renderableCellSet, cellMap, highlightedCellKeySet, players, interactionEnabled, canPlaceCell, isOwnTurn])
+  }, [boardState, renderableCells, highlightedCellKeys, interactionEnabled, canPlaceCell, isOwnTurn])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -344,7 +317,7 @@ function useGameBoard({
     canvasClassName: `absolute inset-0 h-full w-full touch-none select-none ${interactionEnabled
       ? (canPlaceCell || isSpectator ? 'cursor-grab active:cursor-grabbing' : 'cursor-not-allowed')
       : 'cursor-default'
-    }`,
+      }`,
     canvasHandlers: {
       onMouseDown: (event) => {
         if (!interactionEnabled || shouldIgnoreMouseEvent()) {
@@ -586,7 +559,7 @@ function useGameBoard({
         scheduleDraw()
       }
     },
-    renderableCellCount: renderableCells.length,
+    renderableCellCount: renderableCells.size,
     resetView
   }
 }

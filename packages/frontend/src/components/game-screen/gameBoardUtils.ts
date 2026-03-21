@@ -1,5 +1,5 @@
 import { PLACE_CELL_HEX_RADIUS, getCellKey, getHexDistance } from '@ih3t/shared'
-import type { BoardCell, DatabaseGamePlayer, PlayerNames } from '@ih3t/shared'
+import type { BoardCell, DatabaseGamePlayer, PlayerNames, PlayerTileConfig } from '@ih3t/shared'
 
 export const HEX_RADIUS = PLACE_CELL_HEX_RADIUS
 export { getCellKey }
@@ -7,7 +7,6 @@ export const MIN_SCALE = 12
 export const MAX_SCALE = 200
 export const DEFAULT_SCALE = 42
 export const GRID_LINE_COLOR = 'rgba(148, 163, 184, 0.18)'
-export const ORIGIN_LINE_COLOR = 'rgba(125, 211, 252, 0.55)'
 
 const SQRT_THREE = Math.sqrt(3)
 
@@ -24,8 +23,11 @@ interface CubeCell {
 
 export interface RenderableCell extends HexCell {
   key: string
+
   pointX: number
   pointY: number
+
+  color: string | null,
 }
 
 type PlayerReference = string | DatabaseGamePlayer
@@ -43,15 +45,11 @@ function getDatabasePlayerDisplayName(players: readonly PlayerReference[], playe
   return player.displayName.trim() || null
 }
 
-export function getPlayerColor(players: readonly PlayerReference[], playerId: string): string {
-  const palette = ['#fbbf24', '#38bdf8', '#f472b6', '#34d399', '#c084fc', '#fb7185']
-  const index = players.findIndex((player) => getPlayerId(player) === playerId)
-
-  if (index === -1) {
-    return palette[0]
-  }
-
-  return palette[Math.min(index, palette.length - 1)]
+export function getPlayerTileColor(
+  playerTiles: Record<string, PlayerTileConfig> | null | undefined,
+  playerId: string
+): string {
+  return playerTiles?.[playerId]?.color ?? '#FF00FF'
 }
 
 export function getPlayerLabel(
@@ -136,7 +134,7 @@ export function clampScale(scale: number): number {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale))
 }
 
-export function getTouchDistance(touches: TouchList): number {
+export function getTouchDistance(touches: React.TouchList): number {
   if (touches.length < 2) {
     return 0
   }
@@ -147,7 +145,7 @@ export function getTouchDistance(touches: TouchList): number {
   return Math.hypot(deltaX, deltaY)
 }
 
-export function getTouchCenter(touches: TouchList) {
+export function getTouchCenter(touches: React.TouchList) {
   if (touches.length === 0) {
     return null
   }
@@ -165,19 +163,23 @@ export function getTouchCenter(touches: TouchList) {
   }
 }
 
-export function buildRenderableCells(cells: BoardCell[]): RenderableCell[] {
+export function buildRenderableCells(cells: BoardCell[], tileConfigs: Record<string, PlayerTileConfig>): Map<string, RenderableCell> {
   const renderableCells = new Map<string, RenderableCell>()
 
   if (cells.length === 0) {
     const origin = axialToUnitPoint(0, 0)
     renderableCells.set(getCellKey(0, 0), {
       key: getCellKey(0, 0),
+
       x: 0,
       y: 0,
+
       pointX: origin.x,
-      pointY: origin.y
+      pointY: origin.y,
+
+      color: null
     })
-    return [...renderableCells.values()]
+    return renderableCells
   }
 
   for (const cell of cells) {
@@ -187,14 +189,18 @@ export function buildRenderableCells(cells: BoardCell[]): RenderableCell[] {
           const key = getCellKey(x, y)
           if (!renderableCells.has(key)) {
             const point = axialToUnitPoint(x, y)
-            renderableCells.set(key, { key, x, y, pointX: point.x, pointY: point.y })
+            renderableCells.set(key, { key, x, y, pointX: point.x, pointY: point.y, color: null })
           }
         }
       }
     }
+
+    const key = getCellKey(cell.x, cell.y)
+    const point = axialToUnitPoint(cell.x, cell.y)
+    renderableCells.set(key, { key, x: cell.x, y: cell.y, pointX: point.x, pointY: point.y, color: tileConfigs[cell.occupiedBy]?.color ?? null })
   }
 
-  return [...renderableCells.values()]
+  return renderableCells
 }
 
 function hexDistance(a: HexCell, b: HexCell): number {

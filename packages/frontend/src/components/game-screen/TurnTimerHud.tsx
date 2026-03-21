@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import type { GameBoard, LobbyOptions, SessionParticipant } from '@ih3t/shared'
+import type { GameState, LobbyOptions, SessionParticipant } from '@ih3t/shared'
 import { playCountdownWarningSound } from '../../soundEffects'
-import { formatCountdown, getPlayerColor, getPlayerLabel } from './gameBoardUtils'
+import { formatCountdown, getPlayerLabel, getPlayerTileColor } from './gameBoardUtils'
 
 interface TurnTimerHudProps {
   gameOptions: LobbyOptions
   players: SessionParticipant[]
-  gameState: GameBoard
+  gameState: GameState
   localPlayerId: string | null
 }
 
@@ -31,7 +31,7 @@ function TurnTimerHud({
   const firstPlayerId = playerIds[0]!
   const secondPlayerId = playerIds[1]!
   const playerSlots = [firstPlayerId, secondPlayerId] as const
-  const activePlayerColor = currentTurnPlayerId ? getPlayerColor(playerIds, currentTurnPlayerId) : '#7dd3fc'
+  const activePlayerColor = currentTurnPlayerId ? getPlayerTileColor(gameState.playerTiles, currentTurnPlayerId) : '#7dd3fc'
   const spectatorAccentTextStyle = isSpectator ? { color: activePlayerColor } : undefined
   const spectatorAccentDotStyle = isSpectator ? { backgroundColor: activePlayerColor } : undefined
 
@@ -188,7 +188,7 @@ function TurnTimerHud({
                       <div className="flex min-w-0 items-center gap-1.5">
                         <span
                           className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: getPlayerColor(playerIds, playerId) }}
+                          style={{ backgroundColor: getPlayerTileColor(gameState.playerTiles, playerId) }}
                         />
                         <span className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-200 sm:text-[11px]">
                           {getPlayerLabel(playerIds, playerId, playerNames)}

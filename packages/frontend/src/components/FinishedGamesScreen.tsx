@@ -1,5 +1,5 @@
 import type { FinishedGameSummary, FinishedGamesPage } from '@ih3t/shared'
-import { getPlayerColor, getPlayerLabel } from './game-screen/gameBoardUtils'
+import { getPlayerLabel, getPlayerTileColor } from './game-screen/gameBoardUtils'
 import type { FinishedGamesArchiveView } from '../queryHooks'
 
 interface FinishedGamesScreenProps {
@@ -241,7 +241,7 @@ function FinishedGamesScreen({
                               >
                                 <span
                                   className="h-2.5 w-2.5 rounded-full"
-                                  style={{ backgroundColor: getPlayerColor(game.players, player.playerId) }}
+                                  style={{ backgroundColor: getPlayerTileColor(game.playerTiles, player.playerId) }}
                                 />
                                 <span>{getPlayerLabel(game.players, player.playerId)}</span>
                               </span>

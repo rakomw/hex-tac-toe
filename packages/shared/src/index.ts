@@ -46,6 +46,28 @@ export type PlayerNames = z.infer<typeof zPlayerNames>;
 export const zPlayerProfileIds = z.record(z.string(), z.string().nullable());
 export type PlayerProfileIds = z.infer<typeof zPlayerProfileIds>;
 
+export const PLAYER_TILE_COLORS = ['#fbbf24', '#38bdf8', '#f472b6', '#34d399', '#c084fc', '#fb7185'] as const;
+
+export const zPlayerTileConfig = z.object({
+    color: z.string()
+});
+export type PlayerTileConfig = z.infer<typeof zPlayerTileConfig>;
+
+export function getDefaultPlayerTileColor(playerIndex: number): string {
+    return PLAYER_TILE_COLORS[Math.min(playerIndex, PLAYER_TILE_COLORS.length - 1)] ?? PLAYER_TILE_COLORS[0];
+}
+
+export function buildPlayerTileConfigMap(playerIds: readonly string[]): Record<string, PlayerTileConfig> {
+    return Object.fromEntries(
+        playerIds.map((playerId, playerIndex) => [
+            playerId,
+            {
+                color: getDefaultPlayerTileColor(playerIndex)
+            }
+        ])
+    );
+}
+
 export const zGameTimeControl = z.union([
     z.object({
         mode: z.literal('unlimited')
@@ -135,17 +157,18 @@ export function isCellWithinPlacementRadius(
     return placedCells.some((cell) => getHexDistance(cell, candidate) <= radius);
 }
 
-export const zGameBoard = z.object({
+export const GameState = z.object({
     cells: z.array(zBoardCell),
+    playerTiles: z.record(z.string(), zPlayerTileConfig),
     currentTurnPlayerId: zIdentifier.nullable(),
     placementsRemaining: z.number().int().nonnegative(),
     currentTurnExpiresAt: zTimestamp.nullable(),
     playerTimeRemainingMs: z.record(z.string(), z.number().int().nonnegative())
 });
-export type GameBoard = z.infer<typeof zGameBoard>;
+export type GameState = z.infer<typeof GameState>;
 
-export const zBoardState = zGameBoard;
-export type BoardState = GameBoard;
+export const zBoardState = GameState;
+export type BoardState = GameState;
 
 export const zSessionParticipant = z.object({
     id: zIdentifier,
@@ -230,12 +253,13 @@ export type DatabaseGameResult = z.infer<typeof zDatabaseGameResult>;
 
 export const zDatabaseGame = z.object({
     id: zIdentifier,
-    version: z.literal(2),
+    version: z.literal(3),
 
     sessionId: zIdentifier,
     startedAt: zTimestamp,
     finishedAt: zTimestamp.nullable(),
     players: z.array(zDatabaseGamePlayer),
+    playerTiles: z.record(z.string(), zPlayerTileConfig),
     gameOptions: zLobbyOptions,
     moves: z.array(zGameMove),
     moveCount: z.number().int().nonnegative(),
@@ -249,6 +273,7 @@ export const zFinishedGameSummary = z.object({
     startedAt: zTimestamp,
     finishedAt: zTimestamp.nullable(),
     players: z.array(zDatabaseGamePlayer),
+    playerTiles: z.record(z.string(), zPlayerTileConfig),
     gameOptions: zLobbyOptions,
     moveCount: z.number().int().nonnegative(),
     gameResult: zDatabaseGameResult.nullable()
@@ -300,7 +325,7 @@ export type ParticipantUpdatedEvent = z.infer<typeof zParticipantUpdatedEvent>;
 export const zGameStateEvent = z.object({
     sessionId: zIdentifier,
     gameId: zIdentifier,
-    gameState: zGameBoard
+    gameState: GameState
 });
 export type GameStateEvent = z.infer<typeof zGameStateEvent>;
 

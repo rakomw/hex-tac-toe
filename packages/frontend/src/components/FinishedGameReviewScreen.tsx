@@ -1,8 +1,8 @@
-import type { BoardState, FinishedGameRecord } from '@ih3t/shared'
+import type { BoardState, CellOccupant, FinishedGameRecord } from '@ih3t/shared'
 import { useEffect, useMemo, useState } from 'react'
 import GameBoardCanvas from './game-screen/GameBoardCanvas'
 import useGameBoard from './game-screen/useGameBoard'
-import { getCellKey, getPlayerColor, getPlayerLabel } from './game-screen/gameBoardUtils'
+import { getPlayerLabel, getPlayerTileColor } from './game-screen/gameBoardUtils'
 
 interface FinishedGameReviewScreenProps {
   game: FinishedGameRecord | null
@@ -50,6 +50,7 @@ function buildReplayBoardState(game: FinishedGameRecord | null, visibleMoveCount
   if (!game) {
     return {
       cells: [],
+      playerTiles: {},
       currentTurnPlayerId: null,
       placementsRemaining: 0,
       currentTurnExpiresAt: null,
@@ -61,36 +62,14 @@ function buildReplayBoardState(game: FinishedGameRecord | null, visibleMoveCount
     cells: game.moves.slice(0, visibleMoveCount).map((move) => ({
       x: move.x,
       y: move.y,
-      occupiedBy: move.playerId
+      occupiedBy: move.playerId as CellOccupant
     })),
+    playerTiles: game.playerTiles,
     currentTurnPlayerId: null,
     placementsRemaining: 0,
     currentTurnExpiresAt: null,
     playerTimeRemainingMs: {}
   }
-}
-
-function getLastVisibleTurnCellKeys(game: FinishedGameRecord | null, visibleMoveCount: number): string[] {
-  if (!game || visibleMoveCount <= 0) {
-    return []
-  }
-
-  const lastVisibleMove = game.moves[visibleMoveCount - 1]
-  if (!lastVisibleMove) {
-    return []
-  }
-
-  const highlightedMoveKeys: string[] = []
-  for (let moveIndex = visibleMoveCount - 1; moveIndex >= 0; moveIndex -= 1) {
-    const move = game.moves[moveIndex]
-    if (!move || move.playerId !== lastVisibleMove.playerId) {
-      break
-    }
-
-    highlightedMoveKeys.push(getCellKey(move.x, move.y))
-  }
-
-  return highlightedMoveKeys
 }
 
 function FinishedGameReviewScreen({
@@ -140,9 +119,9 @@ function FinishedGameReviewScreen({
     ? game.moves[visibleMoveCount - 1]
     : null
   const gameResult = game?.gameResult ?? null
-  const highlightedCellKeys = useMemo(
-    () => getLastVisibleTurnCellKeys(game, visibleMoveCount),
-    [game, visibleMoveCount]
+  const highlightedCells = useMemo(
+    () => activeMove ? [{ x: activeMove.x, y: activeMove.y }] : [],
+    [activeMove]
   )
 
   const {
@@ -153,13 +132,9 @@ function FinishedGameReviewScreen({
     resetView
   } = useGameBoard({
     boardState,
-    players: game?.players.map((player) => player.playerId) ?? [],
-    interactionEnabled: true,
-    canPlaceCell: false,
-    isOwnTurn: true,
-    isSpectator: true,
-    highlightedCellKeys,
-    onPlaceCell: () => { }
+    highlightedCells,
+    localPlayerId: null,
+    interactionEnabled: true
   })
 
   const startPlayback = () => {
@@ -356,7 +331,7 @@ function FinishedGameReviewScreen({
                     >
                       <span
                         className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: getPlayerColor(game.players, player.playerId) }}
+                        style={{ backgroundColor: getPlayerTileColor(game.playerTiles, player.playerId) }}
                       />
                       <span>{getPlayerLabel(game.players, player.playerId)}</span>
                     </div>
@@ -405,7 +380,7 @@ function FinishedGameReviewScreen({
                           <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Move {move.moveNumber}</div>
                           <span
                             className="h-3 w-3 rounded-full"
-                            style={{ backgroundColor: getPlayerColor(game.players, move.playerId) }}
+                            style={{ backgroundColor: getPlayerTileColor(game.playerTiles, move.playerId) }}
                           />
                         </div>
                         <div className="mt-2 break-words text-lg font-semibold text-white">
