@@ -178,21 +178,21 @@ function AccountPreferencesScreen({
                 <PreferencesErrorState message={preferencesErrorMessage} />
               ) : preferences ? (
                 <div className="grid gap-4 lg:grid-cols-1">
-                  <PreferenceSwitchCard
+                  {/* <PreferenceSwitchCard
                     label="Turn Move Confirmation"
                     description="Require move confirmation before a turn is played."
                     checked={preferences.moveConfirmation}
                     disabled={isSavingPreference}
                     isSaving={savingPreferenceKey === 'moveConfirmation'}
                     onToggle={(nextChecked) => void handlePreferenceToggle('moveConfirmation', nextChecked)}
-                  />
+                  /> */}
                   <PreferenceSwitchCard
                     label='Show Tile Pice Markers'
                     description='Show visual "X" and "O" markers on hex tiles.'
                     checked={preferences.tilePieceMarkers}
                     disabled={isSavingPreference}
-                    isSaving={savingPreferenceKey === 'showMoveMarkers'}
-                    onToggle={(nextChecked) => void handlePreferenceToggle('showMoveMarkers', nextChecked)}
+                    isSaving={savingPreferenceKey === 'tilePieceMarkers'}
+                    onToggle={(nextChecked) => void handlePreferenceToggle('tilePieceMarkers', nextChecked)}
                   />
                 </div>
               ) : (
