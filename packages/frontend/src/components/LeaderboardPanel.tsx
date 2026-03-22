@@ -202,29 +202,14 @@ export function LeaderboardSection({
         </div>
       ) : (
         <div className="mt-4 space-y-2 sm:mt-5 sm:space-y-2.5">
-          {leaderboard.players.map((player, index) => {
-            if (leaderboard.ownPlacement?.profileId === player.profileId) {
-              return (
-                <LeaderboardCard
-                  key={`self`}
-                  display={"self"}
-                  rank={leaderboard.ownPlacement.rank}
-                  player={leaderboard.ownPlacement}
-                />
-              )
-            } else {
-              return (
-                <LeaderboardCard
-                  key={`${player.profileId}-${index}`}
-                  display={"normal"}
-                  rank={index + 1}
-                  player={player}
-                />
-              )
-            }
-
-
-          })}
+          {leaderboard.players.map((player, index) => (
+            <LeaderboardCard
+              key={`${player.profileId}-${index}`}
+              display={leaderboard.ownPlacement?.profileId === player.profileId ? "self" : "normal"}
+              rank={index + 1}
+              player={player}
+            />
+          ))}
         </div>
       )}
 
