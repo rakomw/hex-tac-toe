@@ -7,6 +7,7 @@ import type {
 import { io, type Socket } from 'socket.io-client'
 import { toast } from 'react-toastify'
 import { fetchJson, getDeviceId, getSocketUrl } from './apiClient'
+import { APP_VERSION_HASH } from './appVersion'
 import { getActiveSessionId, useLiveGameStore } from './liveGameStore'
 import { queryClient } from './queryClient'
 import { queryKeys, sortLobbySessions } from './queryHooks'
@@ -40,6 +41,10 @@ function navigateToSession(sessionId: string) {
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
+function isVersionMismatchMessage(message: string) {
+  return message.includes('version hash')
+}
+
 export function startLiveGameClient() {
   if (socket) {
     return
@@ -49,10 +54,27 @@ export function startLiveGameClient() {
   socket = io(socketUrl, {
     auth: {
       deviceId,
-      ephemeralClientId: crypto.randomUUID()
+      ephemeralClientId: crypto.randomUUID(),
+      versionHash: APP_VERSION_HASH
     },
     withCredentials: true,
     transports: ["websocket"]
+  })
+
+  socket.on('connect_error', (error) => {
+    const message = error.message || 'Failed to connect to the server.'
+    useLiveGameStore.getState().setDisconnected()
+    queryClient.setQueryData(queryKeys.availableSessions, [])
+
+    if (isVersionMismatchMessage(message)) {
+      const activeSocket = socket
+      if (activeSocket) {
+        activeSocket.io.opts.reconnection = false
+        activeSocket.disconnect()
+      }
+    }
+
+    showErrorToast(message)
   })
 
   socket.on('connect', () => {

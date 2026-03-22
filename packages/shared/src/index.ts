@@ -518,6 +518,7 @@ export type UpdateAccountProfileRequest = z.infer<typeof zUpdateAccountProfileRe
 
 export const zSocketIOClientAuthPayload = z.object({
     deviceId: z.uuidv4(),
-    ephemeralClientId: z.uuidv4()
+    ephemeralClientId: z.uuidv4(),
+    versionHash: z.string().trim().min(1)
 });
 export type SocketIOClientAuthPayload = z.infer<typeof zSocketIOClientAuthPayload>;

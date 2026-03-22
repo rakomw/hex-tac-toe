@@ -27,8 +27,7 @@ export class ServerConfig {
             authSecretConfigured: true,
             discordClientConfigured: true,
             logLevel: this.logLevel,
-            prettyLogs: this.prettyLogs,
-            rematchTtlMs: this.rematchTtlMs
+            prettyLogs: this.prettyLogs
         };
     }
 
@@ -50,19 +49,6 @@ export class ServerConfig {
         }
 
         throw new Error(`Missing required environment variable ${names.join(' or ')}`);
-    }
-
-    private parsePositiveInt(value: string | undefined): number | null {
-        if (!value) {
-            return null;
-        }
-
-        const parsed = Number.parseInt(value, 10);
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-            return null;
-        }
-
-        return parsed;
     }
 
     private parsePathEnv(name: string): string | null {

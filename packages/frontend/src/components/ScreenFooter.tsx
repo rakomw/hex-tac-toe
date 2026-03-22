@@ -1,3 +1,5 @@
+import { APP_VERSION_HASH } from '../appVersion'
+
 function ScreenFooter() {
   return (
     <footer className="mt-10 text-center text-xs uppercase tracking-[0.22em] text-slate-400">
@@ -9,6 +11,8 @@ function ScreenFooter() {
       </a>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
         <span>Copyright © {new Date().getFullYear()}</span>
+        <span aria-hidden="true">•</span>
+        <span className="font-mono tracking-[0.12em]">Version {APP_VERSION_HASH}</span>
         <span aria-hidden="true">•</span>
         <a
           href="https://github.com/WolverinDEV/infhex-tic-tac-toe"

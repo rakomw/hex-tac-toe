@@ -16,6 +16,7 @@ import { AuthService } from '../auth/authService';
 import { ROOT_LOGGER } from '../logger';
 import { MetricsTracker } from '../metrics/metricsTracker';
 import { getSocketClientInfo as parseSocketClientInfo } from './clientInfo';
+import { APP_VERSION_HASH } from '../appVersion';
 import { CorsConfiguration } from './cors';
 import { SessionError, SessionManager } from '../session/sessionManager';
 import type {
@@ -58,6 +59,15 @@ export class SocketServerGateway {
         const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, this.corsConfiguration.options ? {
             cors: this.corsConfiguration.options
         } : undefined);
+
+        io.use((socket, next) => {
+            try {
+                this.assertSocketVersionMatch(socket);
+                next();
+            } catch (error: unknown) {
+                next(error instanceof Error ? error : new Error('Unexpected server error'));
+            }
+        });
 
         this.sessionManager.setEventHandlers({
             lobbyListUpdated: (lobbies) => {
@@ -287,6 +297,30 @@ export class SocketServerGateway {
         });
 
         socket.emit("initialized");
+    }
+
+    private assertSocketVersionMatch(socket: ClientSocket): void {
+        if (!APP_VERSION_HASH) {
+            /* server in development mode */
+            return;
+        }
+
+        const clientInfo = parseSocketClientInfo(socket);
+        if (clientInfo.versionHash === APP_VERSION_HASH) {
+            return;
+        }
+
+        this.logger.warn({
+            event: 'socket.version-mismatch',
+            socketId: socket.id,
+            clientVersionHash: clientInfo.versionHash,
+            serverVersionHash: APP_VERSION_HASH,
+            client: clientInfo
+        }, 'Rejected socket connection due to version mismatch');
+
+        throw new Error(
+            `Client version hash ${clientInfo.versionHash} does not match server version hash ${APP_VERSION_HASH}. Please refresh the page.`
+        );
     }
 
     public getConnectedClientCount() {

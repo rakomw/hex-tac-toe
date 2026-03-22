@@ -13,6 +13,7 @@ export interface RequestClientInfo {
 export interface SocketClientInfo extends RequestClientInfo {
     socketId: string;
     ephemeralClientId: string;
+    versionHash: string;
 }
 
 function getHeaderValue(value: string | string[] | undefined): string | null {
@@ -58,10 +59,11 @@ export function getRequestClientInfo(request: Request): RequestClientInfo {
 }
 
 export function getSocketClientInfo(socket: Socket<ClientToServerEvents, ServerToClientEvents>): SocketClientInfo {
-    const { deviceId, ephemeralClientId } = zSocketIOClientAuthPayload.parse(socket.handshake.auth);
+    const { deviceId, ephemeralClientId, versionHash } = zSocketIOClientAuthPayload.parse(socket.handshake.auth);
     return {
         deviceId,
         ephemeralClientId,
+        versionHash,
 
         socketId: socket.id,
         ip: socket.handshake.address ?? null,
