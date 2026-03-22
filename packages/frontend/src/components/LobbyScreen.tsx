@@ -73,6 +73,7 @@ function LobbyScreen({
   liveSessions,
   onHostGame,
   onJoinGame,
+  onViewLeaderboard,
 }: Readonly<LobbyScreenProps>) {
   const isPlayingDisabled = !isConnected || Boolean(shutdown)
   const [now, setNow] = useState(() => getInitialRenderTimestamp())
@@ -156,6 +157,12 @@ function LobbyScreen({
                   New matches are disabled until the restart completes.
                 </div>
               )}
+              <button
+                onClick={onViewLeaderboard}
+                className="block lg:hidden rounded-full border border-sky-300/25 bg-sky-400/10 px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-sky-100 transition hover:-translate-y-0.5 hover:bg-sky-400/20 sm:px-7 sm:text-base sm:tracking-[0.18em]"
+              >
+                Leaderboard
+              </button>
             </div>
           </div>
         </section>
