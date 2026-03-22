@@ -8,6 +8,7 @@ interface FinishedGameReviewScreenProps {
   game: FinishedGameRecord | null
   isLoading: boolean
   errorMessage: string | null
+  showTilePieceMarkers: boolean
   onRetry: () => void
 }
 
@@ -15,6 +16,7 @@ function FinishedGameReviewScreen({
   game,
   isLoading,
   errorMessage,
+  showTilePieceMarkers,
   onRetry
 }: Readonly<FinishedGameReviewScreenProps>) {
   if (isLoading) {
@@ -29,7 +31,7 @@ function FinishedGameReviewScreen({
     return <FinishedGameReviewNotFound onRetry={onRetry} />
   }
 
-  return <FinishedGameReplayView game={game} onRetry={onRetry} />
+  return <FinishedGameReplayView game={game} onRetry={onRetry} showTilePieceMarkers={showTilePieceMarkers} />
 }
 
 export default FinishedGameReviewScreen

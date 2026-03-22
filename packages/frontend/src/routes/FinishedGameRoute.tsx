@@ -1,9 +1,13 @@
 import { Navigate, useParams } from 'react-router'
 import FinishedGameReviewScreen from '../components/FinishedGameReviewScreen'
-import { useQueryFinishedGame } from '../queryHooks'
+import { useQueryAccount, useQueryAccountPreferences, useQueryFinishedGame } from '../queryHooks'
 
 function FinishedGameRoute() {
   const { gameId } = useParams<{ gameId: string }>()
+  const accountQuery = useQueryAccount({ enabled: Boolean(gameId) })
+  const accountPreferencesQuery = useQueryAccountPreferences({
+    enabled: Boolean(accountQuery.data?.user)
+  })
   const finishedGameQuery = useQueryFinishedGame(gameId ?? null, {
     enabled: Boolean(gameId)
   })
@@ -17,6 +21,7 @@ function FinishedGameRoute() {
       game={finishedGameQuery.data ?? null}
       isLoading={finishedGameQuery.isLoading}
       errorMessage={finishedGameQuery.error instanceof Error ? finishedGameQuery.error.message : null}
+      showTilePieceMarkers={accountPreferencesQuery.data?.preferences.tilePieceMarkers ?? false}
       onRetry={() => void finishedGameQuery.refetch()}
     />
   )

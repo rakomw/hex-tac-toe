@@ -8,6 +8,7 @@ import FinishedGameReviewLayout from './FinishedGameReviewLayout'
 
 interface FinishedGameReplayViewProps {
   game: FinishedGameRecord
+  showTilePieceMarkers: boolean
   onRetry: () => void
 }
 
@@ -124,6 +125,7 @@ function buildReplayBoardState(game: FinishedGameRecord, visibleMoveCount: numbe
 
 function FinishedGameReplayView({
   game,
+  showTilePieceMarkers,
   onRetry
 }: Readonly<FinishedGameReplayViewProps>) {
   const [visibleMoveCount, setVisibleMoveCount] = useState(game.moves.length)
@@ -175,7 +177,8 @@ function FinishedGameReplayView({
     boardState,
     highlightedCells,
     localPlayerId: null,
-    interactionEnabled: true
+    interactionEnabled: true,
+    showTilePieceMarkers
   })
 
   const startPlayback = () => {
