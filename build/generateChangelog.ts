@@ -2,24 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-type ChangelogEntryKind = 'feature' | 'fix' | 'maintenance' | 'other';
-
-interface ChangelogEntry {
-    hash: string;
-    shortHash: string;
-    committedAt: number;
-    date: string;
-    scope: string | null;
-    summary: string;
-    kind: ChangelogEntryKind;
-}
-
-interface ChangelogDay {
-    date: string;
-    commitCount: number;
-    entries: ChangelogEntry[];
-}
+import type { ChangelogDay, ChangelogEntry, ChangelogEntryKind } from '../packages/shared/src/changelogTypes.js';
 
 const SCRIPT_DIRECTORY_PATH = dirname(fileURLToPath(import.meta.url));
 const REPOSITORY_ROOT_PATH = resolve(SCRIPT_DIRECTORY_PATH, '..');
@@ -33,7 +16,7 @@ function readGitLog(): string {
             `safe.directory=${REPOSITORY_ROOT_PATH}`,
             'log',
             '--date=short',
-            '--pretty=format:%H%x09%ct%x09%ad%x09%s'
+            '--pretty=format:%H%x1f%ct%x1f%ad%x1f%B%x1e'
         ],
         {
             cwd: REPOSITORY_ROOT_PATH,
@@ -73,24 +56,88 @@ function resolveCommitKind(type: string | null): ChangelogEntryKind {
     }
 }
 
-function parseCommitLine(line: string): ChangelogEntry {
-    const [hash, committedAtValue, date, subject] = line.split('\t');
-    const committedAt = Number.parseInt(committedAtValue ?? '', 10) * 1000;
-    if (!hash || !date || !subject || !Number.isFinite(committedAt)) {
-        throw new Error(`Unable to parse git log line: ${line}`);
+function normalizeMessage(value: string): string {
+    return value.replace(/\r\n/g, '\n').trim();
+}
+
+function isFooterStart(line: string): boolean {
+    return /^(BREAKING CHANGE|BREAKING-CHANGE|[A-Za-z][A-Za-z0-9-]*)(?:: |\s+#).+/.test(line);
+}
+
+function parseFooterBlocks(lines: string[]): string[][] {
+    const trimmedLines = [...lines];
+    while (trimmedLines.length > 0 && trimmedLines.at(-1)?.trim() === '') {
+        trimmedLines.pop();
     }
 
-    const conventionalCommitMatch = subject.match(/^([a-z]+)(?:\(([^)]+)\))?!?:\s*(.+)$/i);
-    const summary = normalizeSummary(conventionalCommitMatch?.[3] ?? subject);
+    const footerBlocks: string[][] = [];
+    let cursor = trimmedLines.length - 1;
+
+    while (cursor >= 0) {
+        if (trimmedLines[cursor]?.trim() === '') {
+            break;
+        }
+
+        let footerStartIndex = cursor;
+        while (footerStartIndex >= 0 && !isFooterStart(trimmedLines[footerStartIndex] ?? '')) {
+            footerStartIndex -= 1;
+        }
+
+        if (footerStartIndex < 0) {
+            break;
+        }
+
+        footerBlocks.unshift(trimmedLines.slice(footerStartIndex, cursor + 1));
+        cursor = footerStartIndex - 1;
+    }
+
+    return footerBlocks;
+}
+
+function parseBreakingChangeNote(message: string): string | null {
+    const lines = message.split('\n');
+    const footerBlocks = parseFooterBlocks(lines.slice(1));
+
+    for (const block of footerBlocks) {
+        const [headerLine, ...continuationLines] = block;
+        const footerMatch = headerLine?.match(/^(BREAKING CHANGE|BREAKING-CHANGE):\s*(.+)$/);
+        if (!footerMatch) {
+            continue;
+        }
+
+        return normalizeSummary([footerMatch[2], ...continuationLines].join(' ').trim());
+    }
+
+    return null;
+}
+
+function parseCommitRecord(record: string): ChangelogEntry {
+    const [hash, committedAtValue, date, rawMessage] = record.split('\x1f');
+    const committedAt = Number.parseInt(committedAtValue ?? '', 10) * 1000;
+    const message = normalizeMessage(rawMessage ?? '');
+    const header = message.split('\n', 1)[0] ?? '';
+
+    if (!hash || !date || !message || !Number.isFinite(committedAt)) {
+        throw new Error(`Unable to parse git log record: ${record}`);
+    }
+
+    const conventionalCommitMatch = header.match(/^([A-Za-z][A-Za-z0-9-]*)(?:\(([^)]+)\))?(!)?:\s*(.+)$/);
+    const type = conventionalCommitMatch?.[1]?.toLowerCase() ?? null;
+    const summary = normalizeSummary(conventionalCommitMatch?.[4] ?? header);
+    const breakingChangeNote = parseBreakingChangeNote(message);
+    const isBreakingChange = Boolean(conventionalCommitMatch?.[3] || breakingChangeNote);
 
     return {
         hash,
         shortHash: hash.slice(0, 7),
         committedAt,
         date,
+        type,
         scope: conventionalCommitMatch?.[2] ?? null,
         summary,
-        kind: resolveCommitKind(conventionalCommitMatch?.[1] ?? null)
+        kind: resolveCommitKind(type),
+        isBreakingChange,
+        breakingChangeNote: breakingChangeNote ?? (isBreakingChange ? summary : null)
     };
 }
 
@@ -116,23 +163,7 @@ function groupCommitsByDate(entries: ChangelogEntry[]): ChangelogDay[] {
 
 function renderSharedModule(days: ChangelogDay[], generatedAt: string): string {
     return [
-        "export type ChangelogEntryKind = 'feature' | 'fix' | 'maintenance' | 'other';",
-        '',
-        'export interface ChangelogEntry {',
-        '    hash: string;',
-        '    shortHash: string;',
-        '    committedAt: number;',
-        '    date: string;',
-        '    scope: string | null;',
-        '    summary: string;',
-        '    kind: ChangelogEntryKind;',
-        '}',
-        '',
-        'export interface ChangelogDay {',
-        '    date: string;',
-        '    commitCount: number;',
-        '    entries: ChangelogEntry[];',
-        '}',
+        "import type { ChangelogDay } from './changelogTypes';",
         '',
         `export const CHANGELOG_GENERATED_AT = ${JSON.stringify(generatedAt)};`,
         `export const CHANGELOG_COMMIT_COUNT = ${days.reduce((total, day) => total + day.commitCount, 0)};`,
@@ -144,9 +175,10 @@ function renderSharedModule(days: ChangelogDay[], generatedAt: string): string {
 function main(): void {
     const generatedAt = new Date().toISOString();
     const changelogEntries = readGitLog()
-        .split(/\r?\n/)
-        .filter((line) => line.trim().length > 0)
-        .map(parseCommitLine);
+        .split('\x1e')
+        .map((record) => record.trim())
+        .filter((record) => record.length > 0)
+        .map(parseCommitRecord);
     const changelogDays = groupCommitsByDate(changelogEntries);
 
     mkdirSync(resolve(SHARED_CHANGELOG_MODULE_PATH, '..'), { recursive: true });

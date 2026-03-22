@@ -70,6 +70,41 @@ function formatTimestamp(value: number) {
   }).format(new Date(value))
 }
 
+function countBreakingChanges(changelogDays: ChangelogDay[]) {
+  return changelogDays.reduce(
+    (total, day) => total + day.entries.filter((entry) => entry.isBreakingChange).length,
+    0
+  )
+}
+
+function sortDayEntries(
+  entries: ChangelogDay['entries'],
+  changelogReadAt: number | null,
+  hasTrackedReadState: boolean
+) {
+  const kindOrder: Record<ChangelogEntryKind, number> = {
+    feature: 0,
+    fix: 1,
+    maintenance: 2,
+    other: 3
+  }
+
+  return [...entries].sort((leftEntry, rightEntry) => {
+    const leftIsNew = hasTrackedReadState && isUnreadChangelogEntry(leftEntry.committedAt, changelogReadAt)
+    const rightIsNew = hasTrackedReadState && isUnreadChangelogEntry(rightEntry.committedAt, changelogReadAt)
+    if (leftIsNew !== rightIsNew) {
+      return leftIsNew ? -1 : 1
+    }
+
+    const kindDifference = kindOrder[leftEntry.kind] - kindOrder[rightEntry.kind]
+    if (kindDifference !== 0) {
+      return kindDifference
+    }
+
+    return rightEntry.committedAt - leftEntry.committedAt
+  })
+}
+
 function ChangelogScreen({
   changelogDays,
   commitCount,
@@ -87,6 +122,15 @@ function ChangelogScreen({
     ? countUnreadChangelogEntries(changelogDays, changelogReadAt)
     : 0
   const hasNewEntries = newEntryCount > 0
+  const totalBreakingChangeCount = countBreakingChanges(changelogDays)
+  const unreadBreakingChangeCount = account && preferences
+    ? changelogDays.reduce(
+      (total, day) => total + day.entries.filter(
+        (entry) => entry.isBreakingChange && isUnreadChangelogEntry(entry.committedAt, changelogReadAt)
+      ).length,
+      0
+    )
+    : 0
 
   async function handleMarkNewChangesAsRead() {
     if (!account || !preferences || latestCommitAt <= 0) {
@@ -119,7 +163,7 @@ function ChangelogScreen({
     <PageCorpus
       category="Project History"
       title="Changelog"
-      description={`Generated from ${commitCount} commits in git history.`}
+      description={`Generated from ${commitCount} commits in git history.${totalBreakingChangeCount > 0 ? ` ${totalBreakingChangeCount} breaking change${totalBreakingChangeCount === 1 ? '' : 's'} flagged.` : ''}`}
     >
       <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex flex-col gap-4 overflow-auto overscroll-contain">
         {account ? (
@@ -163,9 +207,11 @@ function ChangelogScreen({
         ) : null}
 
         {changelogDays.map((day) => {
+          const sortedEntries = sortDayEntries(day.entries, changelogReadAt, Boolean(account && preferences))
           const dayNewEntryCount = account && preferences
-            ? day.entries.filter((entry) => isUnreadChangelogEntry(entry.committedAt, changelogReadAt)).length
+            ? sortedEntries.filter((entry) => isUnreadChangelogEntry(entry.committedAt, changelogReadAt)).length
             : 0
+          const dayBreakingChangeCount = sortedEntries.filter((entry) => entry.isBreakingChange).length
 
           return (
             <section
@@ -180,6 +226,11 @@ function ChangelogScreen({
                   </h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  {dayBreakingChangeCount > 0 && (
+                    <div className="rounded-full border border-rose-300/20 bg-rose-500/12 px-4 py-2 text-sm text-rose-100">
+                      {dayBreakingChangeCount} breaking
+                    </div>
+                  )}
                   {dayNewEntryCount > 0 && (
                     <div className="rounded-full border border-amber-300/20 bg-amber-300/12 px-4 py-2 text-sm text-amber-100">
                       {dayNewEntryCount} new
@@ -192,10 +243,13 @@ function ChangelogScreen({
               </div>
 
               <div className="mt-5 grid gap-3">
-                {day.entries.map((entry) => (
+                {sortedEntries.map((entry) => (
                   <article
                     key={entry.hash}
-                    className="rounded-[1.35rem] border border-white/10 bg-black/20 p-4 sm:p-5"
+                    className={`rounded-[1.35rem] border p-4 sm:p-5 ${entry.isBreakingChange
+                      ? 'border-rose-300/30 bg-rose-500/10 shadow-[0_0_0_1px_rgba(251,113,133,0.08)]'
+                      : 'border-white/10 bg-black/20'
+                      }`}
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center gap-2">
@@ -204,14 +258,19 @@ function ChangelogScreen({
                         >
                           {CHANGELOG_KIND_LABELS[entry.kind]}
                         </span>
-                        <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 font-mono text-xs text-slate-300">
-                          {entry.shortHash}
-                        </span>
                         {entry.scope && (
                           <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-slate-300">
                             {entry.scope}
                           </span>
                         )}
+                        {entry.isBreakingChange && (
+                          <span className="rounded-full border border-rose-300/25 bg-rose-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-rose-50">
+                            Breaking Change
+                          </span>
+                        )}
+                        <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 font-mono text-xs text-slate-300">
+                          {entry.shortHash}
+                        </span>
                         {account && preferences && isUnreadChangelogEntry(entry.committedAt, changelogReadAt) && (
                           <span className="rounded-full border border-amber-300/20 bg-amber-300/12 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
                             New
@@ -223,6 +282,15 @@ function ChangelogScreen({
                     <p className="mt-3 text-sm leading-6 text-slate-100 sm:text-base">
                       {entry.summary}
                     </p>
+
+                    {entry.isBreakingChange && entry.breakingChangeNote && entry.breakingChangeNote !== entry.summary && (
+                      <div className="mt-3 rounded-[1.1rem] border border-rose-300/20 bg-black/15 p-3 text-sm leading-6 text-rose-50/95">
+                        <span className="mr-2 inline-flex rounded-full border border-rose-300/25 bg-rose-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-50">
+                          Impact
+                        </span>
+                        {entry.breakingChangeNote}
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>

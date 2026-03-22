@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const DUMMY = 'Hello?';
 export const PLACE_CELL_HEX_RADIUS = 8;
-export type { ChangelogDay, ChangelogEntry, ChangelogEntryKind } from './generatedChangelog';
+export type { ChangelogDay, ChangelogEntry, ChangelogEntryKind } from './changelogTypes';
 export { CHANGELOG_COMMIT_COUNT, CHANGELOG_DAYS, CHANGELOG_GENERATED_AT } from './generatedChangelog';
 
 export interface HexCoordinate {
