@@ -1,11 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 import { toast } from 'react-toastify'
-import { broadcastAdminMessage, cancelShutdownSchedule, scheduleShutdown, terminateAdminGame } from '../adminClient'
+import {
+  broadcastAdminMessage,
+  cancelShutdownSchedule,
+  scheduleShutdown,
+  terminateAdminGame,
+  updateAdminServerSettings
+} from '../adminClient'
 import AdminControlsScreen from '../components/AdminControlsScreen'
 import { queryClient } from '../queryClient'
 import { useLiveGameStore } from '../liveGameStore'
-import { queryKeys, useQueryAccount, useQueryAvailableSessions } from '../queryHooks'
+import {
+  queryKeys,
+  useQueryAccount,
+  useQueryAdminServerSettings,
+  useQueryAvailableSessions
+} from '../queryHooks'
 
 function showSuccessToast(message: string) {
   toast.success(message, {
@@ -25,14 +36,27 @@ function AdminControlsRoute() {
   const accountQuery = useQueryAccount({ enabled: true })
   const isAdmin = accountQuery.data?.user?.role === 'admin'
   const availableSessionsQuery = useQueryAvailableSessions({ enabled: isAdmin })
+  const adminServerSettingsQuery = useQueryAdminServerSettings({ enabled: isAdmin })
   const [delayMinutes, setDelayMinutes] = useState('10')
+  const [maxConcurrentGames, setMaxConcurrentGames] = useState('')
   const [messageDraft, setMessageDraft] = useState('')
   const [isScheduling, setIsScheduling] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [isSavingServerSettings, setIsSavingServerSettings] = useState(false)
   const [terminatingSessionId, setTerminatingSessionId] = useState<string | null>(null)
 
   const activeGames = (availableSessionsQuery.data ?? []).filter((session) => session.startedAt !== null)
+  const currentConcurrentGames = adminServerSettingsQuery.data?.currentConcurrentGames ?? null
+
+  useEffect(() => {
+    const configuredLimit = adminServerSettingsQuery.data?.settings.maxConcurrentGames
+    if (configuredLimit === undefined) {
+      return
+    }
+
+    setMaxConcurrentGames(configuredLimit === null ? '' : String(configuredLimit))
+  }, [adminServerSettingsQuery.data?.settings.maxConcurrentGames])
 
   const handleSchedule = async () => {
     const parsedMinutes = Number(delayMinutes)
@@ -85,6 +109,37 @@ function AdminControlsRoute() {
     }
   }
 
+  const handleSaveServerSettings = async () => {
+    const trimmedValue = maxConcurrentGames.trim()
+    let parsedLimit: number | null = null
+
+    if (trimmedValue.length > 0) {
+      const numericLimit = Number(trimmedValue)
+      if (!Number.isInteger(numericLimit) || numericLimit < 0 || numericLimit > 10_000) {
+        showErrorToast('Enter a concurrent game limit between 0 and 10000, or leave it blank for no cap.')
+        return
+      }
+
+      parsedLimit = numericLimit
+    }
+
+    setIsSavingServerSettings(true)
+    try {
+      const response = await updateAdminServerSettings(parsedLimit)
+      queryClient.setQueryData(queryKeys.adminServerSettings, response)
+      setMaxConcurrentGames(response.settings.maxConcurrentGames === null ? '' : String(response.settings.maxConcurrentGames))
+      showSuccessToast(
+        response.settings.maxConcurrentGames === null
+          ? 'Concurrent game limit removed.'
+          : `Concurrent game limit set to ${response.settings.maxConcurrentGames}.`
+      )
+    } catch (error) {
+      showErrorToast(error instanceof Error ? error.message : 'Failed to save concurrent game limit.')
+    } finally {
+      setIsSavingServerSettings(false)
+    }
+  }
+
   const handleTerminateGame = async (sessionId: string) => {
     const targetSession = activeGames.find((session) => session.id === sessionId)
     const targetLabel = targetSession?.players.map((player) => player.displayName).join(' vs ') || sessionId
@@ -112,16 +167,23 @@ function AdminControlsRoute() {
       <AdminControlsScreen
         isAuthorizing
         shutdown={shutdown}
+        maxConcurrentGames={maxConcurrentGames}
+        currentConcurrentGames={currentConcurrentGames}
         delayMinutes={delayMinutes}
         messageDraft={messageDraft}
         isScheduling={isScheduling}
         isCancelling={isCancelling}
         isSendingMessage={isSendingMessage}
+        isLoadingServerSettings={false}
+        serverSettingsErrorMessage={null}
+        isSavingServerSettings={isSavingServerSettings}
         activeGames={[]}
         isLoadingActiveGames={false}
         terminatingSessionId={terminatingSessionId}
+        onMaxConcurrentGamesChange={setMaxConcurrentGames}
         onDelayMinutesChange={setDelayMinutes}
         onMessageDraftChange={setMessageDraft}
+        onSaveServerSettings={() => void handleSaveServerSettings()}
         onSchedule={() => void handleSchedule()}
         onCancel={() => void handleCancel()}
         onSendMessage={() => void handleSendMessage()}
@@ -140,16 +202,23 @@ function AdminControlsRoute() {
     <AdminControlsScreen
       isAuthorizing={false}
       shutdown={shutdown}
+      maxConcurrentGames={maxConcurrentGames}
+      currentConcurrentGames={currentConcurrentGames}
       delayMinutes={delayMinutes}
       messageDraft={messageDraft}
       isScheduling={isScheduling}
       isCancelling={isCancelling}
       isSendingMessage={isSendingMessage}
+      isLoadingServerSettings={adminServerSettingsQuery.isLoading}
+      serverSettingsErrorMessage={adminServerSettingsQuery.error instanceof Error ? adminServerSettingsQuery.error.message : null}
+      isSavingServerSettings={isSavingServerSettings}
       activeGames={activeGames}
       isLoadingActiveGames={availableSessionsQuery.isLoading}
       terminatingSessionId={terminatingSessionId}
+      onMaxConcurrentGamesChange={setMaxConcurrentGames}
       onDelayMinutesChange={setDelayMinutes}
       onMessageDraftChange={setMessageDraft}
+      onSaveServerSettings={() => void handleSaveServerSettings()}
       onSchedule={() => void handleSchedule()}
       onCancel={() => void handleCancel()}
       onSendMessage={() => void handleSendMessage()}

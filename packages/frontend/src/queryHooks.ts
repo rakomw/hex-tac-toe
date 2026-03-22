@@ -9,6 +9,7 @@ import type {
   LobbyInfo
 } from '@ih3t/shared'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { fetchAdminServerSettings } from './adminClient'
 import { fetchJson } from './apiClient'
 import {
   FINISHED_GAMES_PAGE_SIZE,
@@ -43,6 +44,10 @@ async function fetchAccountStatistics() {
 
 async function fetchAdminStats(timezoneOffsetMinutes: number) {
   return await fetchJson<AdminStatsResponse>(`/api/admin/stats?tzOffsetMinutes=${timezoneOffsetMinutes}`)
+}
+
+async function fetchAdminServerSettingsQuery() {
+  return await fetchAdminServerSettings()
 }
 
 async function fetchLeaderboard() {
@@ -119,6 +124,15 @@ export function useQueryAdminStats(timezoneOffsetMinutes: number, options?: { en
 
     refetchInterval: 10_000,
     refetchIntervalInBackground: true
+  })
+}
+
+export function useQueryAdminServerSettings(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.adminServerSettings,
+    queryFn: fetchAdminServerSettingsQuery,
+    enabled: options?.enabled,
+    staleTime: 10_000
   })
 }
 

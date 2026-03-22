@@ -5,20 +5,24 @@ import {
     type AccountPreferencesResponse,
     type AccountResponse,
     type AccountStatisticsResponse,
-    type Leaderboard,
-    type AdminTerminateSessionResponse,
+    type AdminServerSettingsResponse,
     type AdminStatsResponse,
     type AdminBroadcastMessageResponse,
     type AdminShutdownControlResponse,
+    type AdminTerminateSessionResponse,
+    type ServerSettings,
+    type Leaderboard,
     DEFAULT_LOBBY_OPTIONS,
     type CreateSessionResponse,
     type LobbyOptions,
     zAdminBroadcastMessageRequest,
+    zAdminUpdateServerSettingsRequest,
     zAdminScheduleShutdownRequest,
     zLobbyVisibility,
     zUpdateAccountPreferencesRequest,
     zUpdateAccountProfileRequest,
 } from '@ih3t/shared';
+import { ServerSettingsService } from '../../admin/serverSettingsService';
 import { AdminStatsService } from '../../admin/adminStatsService';
 import { AuthRepository, type AccountUserProfile } from '../../auth/authRepository';
 import { AuthService } from '../../auth/authService';
@@ -74,6 +78,7 @@ export class ApiRouter {
         @inject(AuthService) private readonly authService: AuthService,
         @inject(AuthRepository) private readonly authRepository: AuthRepository,
         @inject(EloRepository) private readonly eloRepository: EloRepository,
+        @inject(ServerSettingsService) private readonly serverSettingsService: ServerSettingsService,
         @inject(AdminStatsService) private readonly adminStatsService: AdminStatsService,
         @inject(LeaderboardService) private readonly leaderboardService: LeaderboardService,
         @inject(SocketServerGateway) private readonly socketServerGateway: SocketServerGateway,
@@ -219,6 +224,26 @@ export class ApiRouter {
             res.json(response);
         });
 
+        router.get('/admin/server-settings', async (req, res) => {
+            const user = await this.requireAdminUser(req, res);
+            if (!user) {
+                return;
+            }
+
+            res.json(this.buildAdminServerSettingsResponse());
+        });
+
+        router.put('/admin/server-settings', express.json(), async (req, res) => {
+            const user = await this.requireAdminUser(req, res);
+            if (!user) {
+                return;
+            }
+
+            const settings = this.parseAdminServerSettingsUpdate(req.body);
+            await this.serverSettingsService.updateSettings(settings, user);
+            res.json(this.buildAdminServerSettingsResponse());
+        });
+
         router.post('/admin/shutdown', express.json(), async (req, res) => {
             const user = await this.requireAdminUser(req, res);
             if (!user) {
@@ -335,6 +360,10 @@ export class ApiRouter {
         return zUpdateAccountPreferencesRequest.parse(body ?? {}).preferences;
     }
 
+    private parseAdminServerSettingsUpdate(body: unknown): ServerSettings {
+        return zAdminUpdateServerSettingsRequest.parse(body ?? {}).settings;
+    }
+
     private async buildAccountStatistics(user: AccountUserProfile): Promise<AccountStatisticsResponse['statistics']> {
         const [gameStats, playerRating, leaderboardPlacement] = await Promise.all([
             this.gameHistoryRepository.getPlayerProfileStatistics(user.id),
@@ -354,6 +383,13 @@ export class ApiRouter {
             totalMovesMade: gameStats.totalMovesMade,
             elo: leaderboardPlacement?.elo ?? playerRating?.elo ?? 1000,
             worldRank: leaderboardPlacement?.rank ?? null
+        };
+    }
+
+    private buildAdminServerSettingsResponse(): AdminServerSettingsResponse {
+        return {
+            settings: this.serverSettingsService.getSettings(),
+            currentConcurrentGames: this.sessionManager.getActiveSessionCounts().total
         };
     }
 

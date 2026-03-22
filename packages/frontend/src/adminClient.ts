@@ -1,11 +1,31 @@
 import type {
   AdminBroadcastMessageRequest,
   AdminBroadcastMessageResponse,
+  AdminServerSettingsResponse,
   AdminTerminateSessionResponse,
   AdminShutdownControlResponse,
-  AdminScheduleShutdownRequest
+  AdminScheduleShutdownRequest,
+  AdminUpdateServerSettingsRequest
 } from '@ih3t/shared'
 import { fetchJson } from './apiClient'
+
+export async function fetchAdminServerSettings() {
+  return await fetchJson<AdminServerSettingsResponse>('/api/admin/server-settings')
+}
+
+export async function updateAdminServerSettings(maxConcurrentGames: number | null) {
+  return await fetchJson<AdminServerSettingsResponse>('/api/admin/server-settings', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      settings: {
+        maxConcurrentGames
+      }
+    } satisfies AdminUpdateServerSettingsRequest)
+  })
+}
 
 export async function scheduleShutdown(delayMinutes: number) {
   return await fetchJson<AdminShutdownControlResponse>('/api/admin/shutdown', {

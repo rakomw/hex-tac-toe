@@ -16,6 +16,7 @@ import { inject, injectable } from 'tsyringe';
 import { EloHandler } from '../elo/eloHandler';
 import { ROOT_LOGGER } from '../logger';
 import { MetricsTracker } from '../metrics/metricsTracker';
+import { ServerSettingsService } from '../admin/serverSettingsService';
 import {
     GameHistoryRepository,
 } from '../persistence/gameHistoryRepository';
@@ -89,7 +90,8 @@ export class SessionManager {
         @inject(GameSimulation) private readonly simulation: GameSimulation,
         @inject(EloHandler) private readonly eloHandler: EloHandler,
         @inject(GameHistoryRepository) private readonly gameHistoryRepository: GameHistoryRepository,
-        @inject(MetricsTracker) private readonly metricsTracker: MetricsTracker
+        @inject(MetricsTracker) private readonly metricsTracker: MetricsTracker,
+        @inject(ServerSettingsService) private readonly serverSettingsService: ServerSettingsService
     ) {
         this.logger = rootLogger.child({ component: 'session-manager' });
     }
@@ -235,9 +237,7 @@ export class SessionManager {
     }
 
     createSession(params: CreateSessionParams): CreateSessionResponse {
-        if (this.scheduledShutdown) {
-            throw new SessionError('Server shutdown is scheduled. New games cannot be created.');
-        }
+        this.assertNewGameCreationAllowed('lobby');
 
         const sessionId = this.createSessionId();
         const session = createGameSession(sessionId, params.lobbyOptions);
@@ -485,9 +485,7 @@ export class SessionManager {
     }
 
     createRematchSession(finishedSessionId: string, spectatorIds: string[] = []): RematchSessionResult {
-        if (this.scheduledShutdown) {
-            throw new SessionError('Server shutdown is scheduled. Rematches are unavailable.');
-        }
+        this.assertNewGameCreationAllowed('rematch');
 
         const session = this.requireSession(finishedSessionId);
         if (session.state !== 'finished') {
@@ -577,6 +575,35 @@ export class SessionManager {
         }
 
         this.requestApplicationShutdown('deadline-reached');
+    }
+
+    private assertNewGameCreationAllowed(source: 'lobby' | 'rematch'): void {
+        if (this.scheduledShutdown) {
+            throw new SessionError(source === 'rematch'
+                ? 'Server shutdown is scheduled. Rematches are unavailable.'
+                : 'Server shutdown is scheduled. New games cannot be created.');
+        }
+
+        const maxConcurrentGames = this.serverSettingsService.getSettings().maxConcurrentGames;
+        if (maxConcurrentGames === null) {
+            return;
+        }
+
+        const currentConcurrentGames = this.getActiveSessionCounts().total;
+        if (currentConcurrentGames < maxConcurrentGames) {
+            return;
+        }
+
+        this.logger.warn({
+            event: 'session.creation.blocked.concurrent-game-limit',
+            source,
+            currentConcurrentGames,
+            maxConcurrentGames
+        }, 'Blocked new game creation because the concurrent game limit was reached');
+
+        throw new SessionError(
+            `The server is currently at its concurrent game limit (${maxConcurrentGames}). Please wait for another game to finish before creating a new one.`
+        );
     }
 
     private async reconcileLobbyState(session: ServerGameSession): Promise<void> {

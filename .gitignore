@@ -27,3 +27,7 @@ dist-ssr
 *.sw?
 
 *.tsbuildinfo
+
+# Ignore this file as it will be automatically generated.
+# The initial file is a placeholder.
+packages/shared/src/generatedChangelog.ts

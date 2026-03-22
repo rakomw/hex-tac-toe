@@ -6,16 +6,23 @@ import { getInitialRenderTimestamp } from '../ssrState'
 interface AdminControlsScreenProps {
   isAuthorizing: boolean
   shutdown: ShutdownState | null
+  maxConcurrentGames: string
+  currentConcurrentGames: number | null
   delayMinutes: string
   messageDraft: string
+  isLoadingServerSettings: boolean
+  serverSettingsErrorMessage: string | null
+  isSavingServerSettings: boolean
   isScheduling: boolean
   isCancelling: boolean
   isSendingMessage: boolean
   activeGames: LobbyInfo[]
   isLoadingActiveGames: boolean
   terminatingSessionId: string | null
+  onMaxConcurrentGamesChange: (value: string) => void
   onDelayMinutesChange: (value: string) => void
   onMessageDraftChange: (value: string) => void
+  onSaveServerSettings: () => void
   onSchedule: () => void
   onCancel: () => void
   onSendMessage: () => void
@@ -63,6 +70,19 @@ function formatLobbyPlayers(players: LobbyInfo['players'], rated: boolean) {
     .join(' vs ')
 }
 
+function renderConcurrentGamesSummary(maxConcurrentGames: string, currentConcurrentGames: number | null) {
+  if (currentConcurrentGames === null) {
+    return 'Loading current usage...'
+  }
+
+  const trimmedLimit = maxConcurrentGames.trim()
+  if (!trimmedLimit) {
+    return `${currentConcurrentGames} concurrent session${currentConcurrentGames === 1 ? '' : 's'} running with no cap configured.`
+  }
+
+  return `${currentConcurrentGames} of ${trimmedLimit} concurrent session${trimmedLimit === '1' ? '' : 's'} currently in use.`
+}
+
 function ShutdownSummary({ shutdown }: { shutdown: ShutdownState | null }) {
   const [now, setNow] = useState(() => getInitialRenderTimestamp())
 
@@ -105,16 +125,23 @@ function ShutdownSummary({ shutdown }: { shutdown: ShutdownState | null }) {
 function AdminControlsScreen({
   isAuthorizing,
   shutdown,
+  maxConcurrentGames,
+  currentConcurrentGames,
   delayMinutes,
   messageDraft,
+  isLoadingServerSettings,
+  serverSettingsErrorMessage,
+  isSavingServerSettings,
   isScheduling,
   isCancelling,
   isSendingMessage,
   activeGames,
   isLoadingActiveGames,
   terminatingSessionId,
+  onMaxConcurrentGamesChange,
   onDelayMinutesChange,
   onMessageDraftChange,
+  onSaveServerSettings,
   onSchedule,
   onCancel,
   onSendMessage,
@@ -176,6 +203,48 @@ function AdminControlsScreen({
           </div>
         ) : (
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr,1.35fr]">
+            <section className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.35)]">
+              <div className="text-xs uppercase tracking-[0.3em] text-emerald-200/80">Capacity</div>
+              <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.08em] text-white">Concurrent Game Cap</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Limit how many unfinished sessions can exist at once. This is enforced only on the server when a new game or rematch is created.
+              </p>
+
+              {serverSettingsErrorMessage ? (
+                <div className="mt-5 rounded-[1.35rem] border border-rose-300/25 bg-rose-500/10 px-5 py-5 text-sm text-rose-100">
+                  {serverSettingsErrorMessage}
+                </div>
+              ) : (
+                <div className="mt-5 rounded-[1.35rem] border border-dashed border-white/10 bg-slate-950/35 px-5 py-5 text-sm text-slate-300">
+                  {isLoadingServerSettings
+                    ? 'Loading concurrent game limit...'
+                    : renderConcurrentGamesSummary(maxConcurrentGames, currentConcurrentGames)}
+                </div>
+              )}
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+                <label className="block flex-1">
+                  <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Max Concurrent Games</div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10000}
+                    value={maxConcurrentGames}
+                    onChange={(event) => onMaxConcurrentGamesChange(event.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-base text-white outline-none transition focus:border-emerald-300/50"
+                    placeholder="Leave blank for no limit"
+                  />
+                </label>
+                <button
+                  onClick={onSaveServerSettings}
+                  disabled={isSavingServerSettings || isLoadingServerSettings}
+                  className="rounded-full bg-emerald-300 px-5 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-slate-950 transition hover:-translate-y-0.5 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingServerSettings ? 'Saving...' : 'Save Limit'}
+                </button>
+              </div>
+            </section>
+
             <section className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.35)]">
               <div className="text-xs uppercase tracking-[0.3em] text-amber-200/80">Shutdown</div>
               <h2 className="mt-3 text-2xl font-black uppercase tracking-[0.08em] text-white">Server Restart</h2>

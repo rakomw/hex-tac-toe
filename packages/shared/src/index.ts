@@ -138,6 +138,24 @@ export const zAdminBroadcastMessageResponse = z.object({
 });
 export type AdminBroadcastMessageResponse = z.infer<typeof zAdminBroadcastMessageResponse>;
 
+export const zServerSettings = z.object({
+    maxConcurrentGames: z.number().int().min(0).max(10_000).nullable().default(null)
+});
+export type ServerSettings = z.infer<typeof zServerSettings>;
+
+export const DEFAULT_SERVER_SETTINGS: ServerSettings = zServerSettings.parse({});
+
+export const zAdminUpdateServerSettingsRequest = z.object({
+    settings: zServerSettings
+});
+export type AdminUpdateServerSettingsRequest = z.infer<typeof zAdminUpdateServerSettingsRequest>;
+
+export const zAdminServerSettingsResponse = z.object({
+    settings: zServerSettings,
+    currentConcurrentGames: z.number().int().nonnegative()
+});
+export type AdminServerSettingsResponse = z.infer<typeof zAdminServerSettingsResponse>;
+
 export const zBoardCell = z.object({
     x: zCoordinate,
     y: zCoordinate,

@@ -1,4 +1,5 @@
 import { container, type DependencyContainer } from 'tsyringe';
+import { ServerSettingsService } from '../admin/serverSettingsService';
 import { AdminStatsService } from '../admin/adminStatsService';
 import { AuthRepository } from '../auth/authRepository';
 import { AuthService } from '../auth/authService';
@@ -12,6 +13,7 @@ import { CorsConfiguration } from '../network/cors';
 import { HttpApplication } from '../network/createHttpApp';
 import { SocketServerGateway } from '../network/createSocketServer';
 import { ApiRouter } from '../network/rest/createApiRouter';
+import { ServerSettingsRepository } from '../persistence/serverSettingsRepository';
 import { GameHistoryRepository } from '../persistence/gameHistoryRepository';
 import { MongoDatabase } from '../persistence/mongoClient';
 import { MetricsRepository } from '../persistence/metricsRepository';
@@ -34,6 +36,8 @@ export function createAppContainer(): DependencyContainer {
     appContainer.registerSingleton(AuthService);
     appContainer.registerSingleton(EloRepository);
     appContainer.registerSingleton(EloHandler);
+    appContainer.registerSingleton(ServerSettingsRepository);
+    appContainer.registerSingleton(ServerSettingsService);
     appContainer.registerSingleton(AdminStatsService);
     appContainer.registerSingleton(LeaderboardService);
     appContainer.registerSingleton(GameHistoryRepository);
