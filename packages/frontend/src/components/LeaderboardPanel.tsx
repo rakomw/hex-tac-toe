@@ -135,7 +135,7 @@ function LeaderboardCard({
       {display === "self" && (
         <div className="text-[0.68rem] mb-3 font-semibold uppercase tracking-[0.24em] text-sky-200">Your Place</div>
       )}
-      <div className="grid grid-cols-[min-content_1fr] sm:grid-cols-[min-content_min-content_1fr] gap-x-3 gap-y-2 sm:gap-3.5">
+      <div className="grid grid-cols-[min-content_1fr] sm:grid-cols-[min-content_auto_1fr] gap-x-3 gap-y-2 sm:gap-3.5">
         <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border text-xs font-black sm:h-10 sm:w-10 sm:text-sm ${getRankTone(rank)}`}>
           {rank}
         </div>
