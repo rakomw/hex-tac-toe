@@ -10,7 +10,7 @@ function showErrorToast(message: string) {
 }
 
 function formatWorldRank(worldRank: number | null) {
-  return worldRank === null ? 'Unranked' : `#${worldRank}`
+  return worldRank === null ? '--' : `#${worldRank}`
 }
 
 function formatWinSummary(won: number, played: number) {
