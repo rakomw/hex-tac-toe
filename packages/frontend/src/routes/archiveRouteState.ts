@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
-import type { FinishedGamesArchiveView } from '../queryHooks'
+import type { FinishedGamesArchiveView } from '../queryDefinitions'
 
 function parseArchivePage(searchParams: URLSearchParams) {
   const pageValue = searchParams.get('page')
@@ -18,7 +18,7 @@ function parseArchiveBaseTimestamp(searchParams: URLSearchParams) {
   return Number.isFinite(value) && value > 0 ? value : null
 }
 
-function getArchiveViewFromPath(pathname: string): FinishedGamesArchiveView {
+export function getArchiveViewFromPath(pathname: string): FinishedGamesArchiveView {
   return pathname.startsWith('/account/games') ? 'mine' : 'all'
 }
 
@@ -40,12 +40,11 @@ export function buildFinishedGamesPath(
 
 export function buildFinishedGamePath(gameId: string, archiveView: FinishedGamesArchiveView = 'all'
 ) {
-  const searchParams = new URLSearchParams()
   const pathname = archiveView === 'mine'
     ? `/account/games/${encodeURIComponent(gameId)}`
     : `/games/${encodeURIComponent(gameId)}`
 
-  return `${pathname}?${searchParams.toString()}`
+  return pathname
 }
 
 export function buildSessionPath(sessionId: string) {

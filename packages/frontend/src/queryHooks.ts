@@ -9,34 +9,19 @@ import type {
 } from '@ih3t/shared'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { fetchJson } from './apiClient'
+import {
+  FINISHED_GAMES_PAGE_SIZE,
+  type FinishedGamesArchiveView,
+  queryKeys,
+  sortLobbySessions
+} from './queryDefinitions'
 
-export const FINISHED_GAMES_PAGE_SIZE = 20
-export type FinishedGamesArchiveView = 'all' | 'mine'
-
-export const queryKeys = {
-  account: ['account'] as const,
-  accountStatistics: ['account', 'statistics'] as const,
-  adminStats: (timezoneOffsetMinutes: number) => ['admin', 'stats', timezoneOffsetMinutes] as const,
-  leaderboard: ['leaderboard'] as const,
-  availableSessions: ['sessions', 'available'] as const,
-  finishedGames: ['finished-games'] as const,
-  finishedGamesPage: (view: FinishedGamesArchiveView, page: number, pageSize: number, baseTimestamp: number) =>
-    ['finished-games', view, page, pageSize, baseTimestamp] as const,
-  finishedGame: (gameId: string) => ['finished-games', gameId] as const
+export {
+  FINISHED_GAMES_PAGE_SIZE,
+  queryKeys,
+  sortLobbySessions
 }
-
-export function sortLobbySessions(sessions: LobbyInfo[]) {
-  return [...sessions].sort((leftSession, rightSession) => {
-    const leftCanJoin = leftSession.startedAt === null && leftSession.playerNames.length < 2
-    const rightCanJoin = rightSession.startedAt === null && rightSession.playerNames.length < 2
-
-    if (leftCanJoin !== rightCanJoin) {
-      return leftCanJoin ? -1 : 1
-    }
-
-    return (rightSession.startedAt ?? 0) - (leftSession.startedAt ?? 0)
-  })
-}
+export type { FinishedGamesArchiveView }
 
 async function fetchAvailableSessions() {
   const sessions = await fetchJson<LobbyInfo[]>('/api/sessions')

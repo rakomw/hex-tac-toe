@@ -14,6 +14,7 @@
         "@auth/express": "^0.12.1",
         "@auth/mongodb-adapter": "^3.11.1",
         "@ih3t/shared": "workspace:*",
+        "@tanstack/react-query": "^5.91.2",
         "@types/cors": "^2.8.19",
         "cors": "^2.8.6",
         "cron": "^4.4.0",

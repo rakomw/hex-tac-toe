@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { LobbyInfo, ShutdownState } from '@ih3t/shared'
 import { formatTimeControl } from '../lobbyOptions'
+import { getInitialRenderTimestamp } from '../ssrState'
 
 interface AdminControlsScreenProps {
   isAuthorizing: boolean
@@ -63,7 +64,7 @@ function formatLobbyPlayers(players: LobbyInfo['players'], rated: boolean) {
 }
 
 function ShutdownSummary({ shutdown }: { shutdown: ShutdownState | null }) {
-  const [now, setNow] = useState(() => Date.now())
+  const [now, setNow] = useState(() => getInitialRenderTimestamp())
 
   useEffect(() => {
     if (!shutdown) {
@@ -121,7 +122,7 @@ function AdminControlsScreen({
   onBack,
   onOpenStats
 }: AdminControlsScreenProps) {
-  const [now, setNow] = useState(() => Date.now())
+  const [now, setNow] = useState(() => getInitialRenderTimestamp())
 
   useEffect(() => {
     if (activeGames.length === 0) {

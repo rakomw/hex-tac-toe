@@ -2,6 +2,7 @@ import type { AccountProfile, CreateSessionRequest, LobbyInfo, LobbyListParticip
 import { useEffect, useState } from 'react'
 import CreateLobbyDialog from './CreateLobbyDialog'
 import { formatTimeControl } from '../lobbyOptions'
+import { getInitialRenderTimestamp } from '../ssrState'
 import ScreenFooter from './ScreenFooter'
 
 interface LobbyScreenProps {
@@ -73,7 +74,7 @@ function LobbyScreen({
   onJoinGame,
 }: Readonly<LobbyScreenProps>) {
   const isPlayingDisabled = !isConnected || Boolean(shutdown)
-  const [now, setNow] = useState(() => Date.now())
+  const [now, setNow] = useState(() => getInitialRenderTimestamp())
   const [isCreateLobbyDialogOpen, setIsCreateLobbyDialogOpen] = useState(false)
 
   useEffect(() => {

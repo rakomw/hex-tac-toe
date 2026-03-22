@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Leaderboard, LeaderboardPlacement, LeaderboardPlayer } from '@ih3t/shared'
 import { useQueryAccount } from '../queryHooks'
+import { getInitialRenderTimestamp } from '../ssrState'
 
 export function formatDateTime(timestamp: number) {
   return new Intl.DateTimeFormat(undefined, {
@@ -229,7 +230,7 @@ export function LeaderboardRefreshIndicator({
   leaderboard: Leaderboard
   isRefreshing: boolean
 }>) {
-  const [now, setNow] = useState(() => Date.now())
+  const [now, setNow] = useState(() => getInitialRenderTimestamp())
 
   useEffect(() => {
     const interval = window.setInterval(() => {

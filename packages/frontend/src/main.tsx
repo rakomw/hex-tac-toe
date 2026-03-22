@@ -1,11 +1,11 @@
 import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { RouterProvider } from 'react-router'
+import { createRoot, hydrateRoot } from 'react-dom/client'
 import './index.css'
-import { appRouter } from './App'
-import AppErrorBoundary from './components/AppErrorBoundary'
+import 'react-toastify/dist/ReactToastify.css'
+import AppProviders from './AppProviders'
 import { queryClient } from './queryClient'
+import { createClientRouter } from './router'
+import { getDehydratedStateFromWindow } from './ssrState'
 import { installSoundEffects } from './soundEffects'
 
 installSoundEffects()
@@ -16,12 +16,19 @@ if (!root) {
   root = document.body;
 }
 
-createRoot(root).render(
+const router = createClientRouter()
+const app = (
   <StrictMode>
-    <AppErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={appRouter} />
-      </QueryClientProvider>
-    </AppErrorBoundary>
-  </StrictMode>,
+    <AppProviders
+      router={router}
+      queryClient={queryClient}
+      dehydratedState={getDehydratedStateFromWindow()}
+    />
+  </StrictMode>
 )
+
+if (root.hasChildNodes()) {
+  hydrateRoot(root, app)
+} else {
+  createRoot(root).render(app)
+}

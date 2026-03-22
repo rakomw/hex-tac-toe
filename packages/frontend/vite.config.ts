@@ -3,7 +3,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import { resolveVersionHash } from '../../build/resolveVersionHash'
 
-export default defineConfig({
+export default defineConfig(({ isSsrBuild }) => ({
   define: {
     __APP_VERSION_HASH__: JSON.stringify(resolveVersionHash())
   },
@@ -11,4 +11,9 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
-})
+  ssr: isSsrBuild
+    ? {
+      noExternal: true
+    }
+    : undefined
+}))

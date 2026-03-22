@@ -10,10 +10,12 @@ import { inject, injectable } from 'tsyringe';
 import { z } from 'zod';
 import { AuthService } from '../auth/authService';
 import { ServerConfig } from '../config/serverConfig';
+import { LeaderboardService } from '../leaderboard/leaderboardService';
 import { ROOT_LOGGER } from '../logger';
 import { GameHistoryRepository } from '../persistence/gameHistoryRepository';
 import { SessionManager } from '../session/sessionManager';
 import { CorsConfiguration } from './cors';
+import { FrontendSsrRenderer } from './frontendSsr';
 import { ApiRouter } from './rest/createApiRouter';
 
 const DEFAULT_PAGE_TITLE = 'Infinity Hexagonal Tic-Tac-Toe';
@@ -82,6 +84,33 @@ function replaceOrInsertCanonicalLink(html: string, href: string): string {
         /<link\s+[^>]*rel=["']canonical["'][^>]*>/i,
         `<link rel="canonical" href="${escapeHtml(href)}" />`
     );
+}
+
+function escapeJsonForHtml(value: string): string {
+    return value
+        .replace(/</g, '\\u003c')
+        .replace(/\u2028/g, '\\u2028')
+        .replace(/\u2029/g, '\\u2029');
+}
+
+function extractLeadingHeadTags(html: string): { headTags: string; bodyHtml: string } {
+    let remainingHtml = html;
+    let headTags = '';
+
+    while (true) {
+        const match = remainingHtml.match(/^\s*(<(?:link|meta)[^>]*\/>)/i);
+        if (!match) {
+            break;
+        }
+
+        headTags += `    ${match[1]}\n`;
+        remainingHtml = remainingHtml.slice(match[0].length);
+    }
+
+    return {
+        headTags,
+        bodyHtml: remainingHtml
+    };
 }
 
 function getSingleQueryValue(value: unknown): string | null {
@@ -162,6 +191,7 @@ export class HttpApplication {
     readonly app: express.Application;
     private readonly logger: Logger;
     private readonly frontendDistPath: string;
+    private readonly frontendSsrRenderer: FrontendSsrRenderer;
     private frontendIndexHtmlPromise: Promise<string> | null = null;
 
     constructor(
@@ -170,6 +200,7 @@ export class HttpApplication {
         @inject(ApiRouter) apiRouter: ApiRouter,
         @inject(CorsConfiguration) corsConfiguration: CorsConfiguration,
         @inject(ServerConfig) serverConfig: ServerConfig,
+        @inject(LeaderboardService) leaderboardService: LeaderboardService,
         @inject(SessionManager) private readonly sessionManager: SessionManager,
         @inject(GameHistoryRepository) private readonly gameHistoryRepository: GameHistoryRepository
     ) {
@@ -179,6 +210,13 @@ export class HttpApplication {
         const frontendDistPath = serverConfig.frontendDistPath;
         this.logger = logger;
         this.frontendDistPath = frontendDistPath;
+        this.frontendSsrRenderer = new FrontendSsrRenderer({
+            authService,
+            frontendDistPath,
+            gameHistoryRepository: this.gameHistoryRepository,
+            leaderboardService,
+            sessionManager: this.sessionManager
+        });
 
         app.set('trust proxy', true);
 
@@ -235,8 +273,21 @@ export class HttpApplication {
         if (process.env.NODE_ENV === 'production' && existsSync(frontendDistPath)) {
             app.use(express.static(frontendDistPath, { index: false }));
             app.get(/^(?!\/api(?:\/|$)|\/socket\.io(?:\/|$)).*/, async (req, res) => {
+                const archiveRedirectUrl = this.resolveArchiveRedirectUrl(req);
+                if (archiveRedirectUrl) {
+                    res.redirect(302, archiveRedirectUrl);
+                    return;
+                }
+
                 const metadata = await this.resolvePageMetadata(req);
-                const html = this.renderHtmlDocument(await this.getFrontendIndexHtml(), metadata);
+                const { appHtml, dehydratedState, renderedAt } = await this.frontendSsrRenderer.render(req);
+                const html = this.renderHtmlDocument(
+                    await this.getFrontendIndexHtml(),
+                    metadata,
+                    appHtml,
+                    dehydratedState,
+                    renderedAt
+                );
                 res.type('html').send(html);
             });
         }
@@ -263,8 +314,16 @@ export class HttpApplication {
         return this.frontendIndexHtmlPromise;
     }
 
-    private renderHtmlDocument(html: string, metadata: PageMetadata): string {
+    private renderHtmlDocument(
+        html: string,
+        metadata: PageMetadata,
+        appHtml: string,
+        dehydratedState: unknown,
+        renderedAt: number
+    ): string {
         let renderedHtml = html;
+        const { headTags, bodyHtml } = extractLeadingHeadTags(appHtml);
+        const stateScript = this.renderFrontendStateScript(dehydratedState, renderedAt);
 
         renderedHtml = replaceOrInsertTag(
             renderedHtml,
@@ -283,8 +342,36 @@ export class HttpApplication {
         renderedHtml = replaceOrInsertMetaName(renderedHtml, 'twitter:description', metadata.description);
         renderedHtml = replaceOrInsertMetaName(renderedHtml, 'twitter:image', metadata.imageUrl);
         renderedHtml = replaceOrInsertCanonicalLink(renderedHtml, metadata.url);
+        if (headTags) {
+            renderedHtml = renderedHtml.replace('</head>', `${headTags}</head>`);
+        }
+        renderedHtml = renderedHtml.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
+        renderedHtml = renderedHtml.includes('<!--app-state-->')
+            ? renderedHtml.replace('<!--app-state-->', stateScript)
+            : renderedHtml.replace('</body>', `    ${stateScript}\n</body>`);
 
         return renderedHtml;
+    }
+
+    private renderFrontendStateScript(dehydratedState: unknown, renderedAt: number): string {
+        const serializedState = escapeJsonForHtml(JSON.stringify(dehydratedState));
+        return `<script>window.__IH3T_DEHYDRATED_STATE__=${serializedState};window.__IH3T_RENDERED_AT__=${renderedAt};</script>`;
+    }
+
+    private resolveArchiveRedirectUrl(req: express.Request): string | null {
+        if (req.path !== '/games' && req.path !== '/account/games') {
+            return null;
+        }
+
+        const origin = `${req.protocol}://${req.get('host')}`;
+        const url = new URL(req.originalUrl || req.url, origin);
+        const atValue = Number.parseInt(url.searchParams.get('at') ?? '', 10);
+        if (Number.isFinite(atValue) && atValue > 0) {
+            return null;
+        }
+
+        url.searchParams.set('at', String(Date.now()));
+        return `${url.pathname}?${url.searchParams.toString()}`;
     }
 
     private async resolvePageMetadata(req: express.Request): Promise<PageMetadata> {

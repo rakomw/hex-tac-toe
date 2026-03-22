@@ -1,6 +1,6 @@
 import { getOrCreateDeviceId } from './deviceId'
 
-const deviceId = getOrCreateDeviceId()
+let cachedDeviceId: string | null = null
 
 export function getApiBaseUrl() {
   const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL
@@ -8,7 +8,11 @@ export function getApiBaseUrl() {
     return configuredBaseUrl.replace(/\/$/, '')
   }
 
-  return import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin
+  if (typeof window !== 'undefined') {
+    return import.meta.env.DEV ? 'http://localhost:3001' : window.location.origin
+  }
+
+  return 'http://localhost:3001'
 }
 
 export function getSocketUrl() {
@@ -16,10 +20,16 @@ export function getSocketUrl() {
 }
 
 export function getDeviceId() {
-  return deviceId
+  if (cachedDeviceId) {
+    return cachedDeviceId
+  }
+
+  cachedDeviceId = getOrCreateDeviceId()
+  return cachedDeviceId
 }
 
 export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const deviceId = getDeviceId()
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     credentials: 'include',
     ...init,
@@ -27,7 +37,7 @@ export async function fetchJson<T>(path: string, init?: RequestInit): Promise<T>
       'X-Device-Id': deviceId,
       ...init?.headers
     }
-  })
+})
 
   if (!response.ok) {
     const data = await response.json().catch(() => null)

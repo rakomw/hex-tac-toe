@@ -10,13 +10,11 @@ import { fetchJson, getDeviceId, getSocketUrl } from './apiClient'
 import { APP_VERSION_HASH } from './appVersion'
 import { getActiveSessionId, useLiveGameStore } from './liveGameStore'
 import { queryClient } from './queryClient'
-import { queryKeys, sortLobbySessions } from './queryHooks'
+import { queryKeys, sortLobbySessions } from './queryDefinitions'
 import { buildSessionPath } from './routes/archiveRouteState'
 
 let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null
 let shouldHandleDisconnect = true
-const deviceId = getDeviceId()
-const socketUrl = getSocketUrl()
 
 function showErrorToast(message: string) {
   toast.error(message, {
@@ -50,6 +48,8 @@ export function startLiveGameClient() {
     return
   }
 
+  const deviceId = getDeviceId()
+  const socketUrl = getSocketUrl()
   shouldHandleDisconnect = true
   socket = io(socketUrl, {
     auth: {
