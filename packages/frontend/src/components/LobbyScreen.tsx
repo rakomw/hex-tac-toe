@@ -162,7 +162,7 @@ function LobbyScreen({
               >
                 {shutdown ? 'Restart Pending' : 'Host Match'}
               </button>
-              <div className={"flex flex-row gap-4 lg:hidden"}>
+              <div className={"flex flex-col sm:flex-row gap-4 lg:hidden"}>
                 <button
                   onClick={onOpenSandbox}
                   className="w-full rounded-full border border-emerald-300/25 bg-emerald-400/10 px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] text-emerald-100 transition hover:-translate-y-0.5 hover:bg-emerald-400/18 sm:px-7 sm:text-base sm:tracking-[0.18em]"
