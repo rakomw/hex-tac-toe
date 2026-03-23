@@ -734,6 +734,28 @@ export const zAdminStatsWindow = z.object({
 });
 export type AdminStatsWindow = z.infer<typeof zAdminStatsWindow>;
 
+export const zAdminUserStatsWindow = z.object({
+    startAt: zTimestamp,
+    endAt: zTimestamp,
+    newUsers: z.number().int().nonnegative(),
+    activeUsers: z.number().int().nonnegative()
+});
+export type AdminUserStatsWindow = z.infer<typeof zAdminUserStatsWindow>;
+
+export const zAdminActiveGamesTimelinePoint = z.object({
+    timestamp: zTimestamp,
+    activeGames: z.number().int().nonnegative()
+});
+export type AdminActiveGamesTimelinePoint = z.infer<typeof zAdminActiveGamesTimelinePoint>;
+
+export const zAdminActiveGamesTimeline = z.object({
+    startAt: zTimestamp,
+    endAt: zTimestamp,
+    bucketSizeMs: z.number().int().positive(),
+    points: z.array(zAdminActiveGamesTimelinePoint)
+});
+export type AdminActiveGamesTimeline = z.infer<typeof zAdminActiveGamesTimeline>;
+
 export const zLeaderboardPlayer = z.object({
     profileId: zIdentifier,
     displayName: z.string(),
@@ -767,11 +789,20 @@ export const zAdminStatsResponse = z.object({
         private: z.number().int().nonnegative()
     }),
     connectedClients: z.number().int().nonnegative(),
+    users: z.object({
+        total: z.number().int().nonnegative(),
+        intervals: z.object({
+            sinceMidnight: zAdminUserStatsWindow,
+            last7Days: zAdminUserStatsWindow,
+            lastMonth: zAdminUserStatsWindow
+        })
+    }),
     intervals: z.object({
         sinceMidnight: zAdminStatsWindow,
         last24Hours: zAdminStatsWindow,
         last7Days: zAdminStatsWindow
-    })
+    }),
+    activeGamesTimeline: zAdminActiveGamesTimeline
 });
 export type AdminStatsResponse = z.infer<typeof zAdminStatsResponse>;
 

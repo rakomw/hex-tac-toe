@@ -127,7 +127,7 @@ export function useQueryAdminStats(timezoneOffsetMinutes: number, options?: { en
     queryFn: () => fetchAdminStats(timezoneOffsetMinutes),
     enabled: options?.enabled,
 
-    refetchInterval: 10_000,
+    refetchInterval: 60_000,
     refetchIntervalInBackground: true
   })
 }

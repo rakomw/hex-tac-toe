@@ -1,9 +1,21 @@
 import type {
+  AdminActiveGamesTimeline,
   AdminLongestGameInDuration,
   AdminLongestGameInMoves,
   AdminStatsResponse,
-  AdminStatsWindow
+  AdminStatsWindow,
+  AdminUserStatsWindow
 } from '@ih3t/shared'
+import {
+  Brush,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from 'recharts'
 import { formatDateTime } from './LeaderboardPanel'
 import PageCorpus from './PageCorpus'
 
@@ -75,6 +87,19 @@ function StatStripItem({
   )
 }
 
+function formatChartTimestamp(timestamp: number) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric'
+  }).format(timestamp)
+}
+
+function formatBucketSize(bucketSizeMs: number) {
+  const totalMinutes = Math.round(bucketSizeMs / 60_000)
+  return `${totalMinutes}-minute`
+}
+
 function LongestGameCard({
   label,
   emptyLabel,
@@ -108,6 +133,102 @@ function LongestGameCard({
         <div className="mt-2 text-sm leading-5 text-slate-400">{emptyLabel}</div>
       )}
     </div>
+  )
+}
+
+function UserWindowCard({
+  title,
+  windowStats
+}: {
+  title: string
+  windowStats: AdminUserStatsWindow
+}) {
+  return (
+    <section className="rounded-[1.5rem] border border-white/10 bg-white/6 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.28)]">
+      <div className="text-[0.68rem] uppercase tracking-[0.3em] text-emerald-200/80">{title}</div>
+      <div className="mt-1 text-xs leading-5 text-slate-400">
+        {formatDateTime(windowStats.startAt)} to {formatDateTime(windowStats.endAt)}
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <StatStripItem label="New Users" value={windowStats.newUsers} />
+        <StatStripItem label="Active Users" value={windowStats.activeUsers} />
+      </div>
+    </section>
+  )
+}
+
+function ActiveGamesChartSection({
+  timeline
+}: {
+  timeline: AdminActiveGamesTimeline
+}) {
+  return (
+    <section className="rounded-[1.6rem] border border-white/10 bg-white/6 p-4 shadow-[0_22px_70px_rgba(15,23,42,0.3)] sm:p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="text-[0.68rem] uppercase tracking-[0.3em] text-sky-200/80">Active Games Timeline</div>
+          <div className="mt-1 text-sm font-semibold text-white">
+            Peak concurrent active games in {formatBucketSize(timeline.bucketSizeMs)} buckets over the last 7 days
+          </div>
+          <div className="mt-1 text-xs leading-5 text-slate-400">
+            Drag the range selector below the chart to zoom into a narrower time window.
+          </div>
+        </div>
+        <div className="text-xs leading-5 text-slate-400">
+          {formatDateTime(timeline.startAt)} to {formatDateTime(timeline.endAt)}
+        </div>
+      </div>
+
+      <div className="mt-5 h-72 rounded-[1.25rem] border border-white/8 bg-slate-950/45 p-3">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={timeline.points} margin={{ top: 12, right: 12, bottom: 12, left: 0 }}>
+            <CartesianGrid stroke="rgba(148,163,184,0.16)" vertical={false} />
+            <XAxis
+              dataKey="timestamp"
+              minTickGap={28}
+              stroke="#94a3b8"
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={formatChartTimestamp}
+            />
+            <YAxis
+              allowDecimals={false}
+              stroke="#94a3b8"
+              tickLine={false}
+              axisLine={false}
+              width={36}
+            />
+            <Tooltip
+              cursor={{ stroke: 'rgba(125,211,252,0.35)', strokeWidth: 1 }}
+              contentStyle={{
+                backgroundColor: 'rgba(2,6,23,0.94)',
+                border: '1px solid rgba(148,163,184,0.2)',
+                borderRadius: '1rem',
+                color: '#e2e8f0'
+              }}
+              formatter={(value) => [`${value} games`, 'Active']}
+              labelFormatter={(label) => formatDateTime(Number(label))}
+            />
+            <Brush
+              dataKey="timestamp"
+              height={28}
+              stroke="#7dd3fc"
+              travellerWidth={10}
+              tickFormatter={formatChartTimestamp}
+              fill="rgba(15,23,42,0.92)"
+            />
+            <Line
+              type="monotone"
+              dataKey="activeGames"
+              stroke="#7dd3fc"
+              strokeWidth={3}
+              dot={false}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
   )
 }
 
@@ -179,14 +300,7 @@ function AdminStatsScreen({
 
       onRefresh={onRefresh}
     >
-      <div className={"px-4 sm:px-6 overscroll-contain min-h-0 overflow-auto"}>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard label="Active Games" value={stats?.activeGames.total ?? '...'} tone="accent" />
-          <SummaryCard label="Public Games" value={stats?.activeGames.public ?? '...'} />
-          <SummaryCard label="Private Games" value={stats?.activeGames.private ?? '...'} />
-          <SummaryCard label="Connected Clients" value={stats?.connectedClients ?? '...'} />
-        </div>
-
+      <div className={"px-4 sm:px-6 pb-6"}>
         {errorMessage && (
           <div className="mt-6 rounded-[1.5rem] border border-rose-300/30 bg-rose-500/10 px-5 py-4 text-sm text-rose-100">
             {errorMessage}
@@ -198,11 +312,31 @@ function AdminStatsScreen({
             Loading statistics...
           </div>
         ) : stats ? (
-          <div className="mt-5 grid gap-4 xl:grid-cols-3">
-            <IntervalSection title="Since Midnight" windowStats={stats.intervals.sinceMidnight} onOpenGame={onOpenGame} />
-            <IntervalSection title="Last 24 Hours" windowStats={stats.intervals.last24Hours} onOpenGame={onOpenGame} />
-            <IntervalSection title="Last 7 Days" windowStats={stats.intervals.last7Days} onOpenGame={onOpenGame} />
-          </div>
+          <>
+            <div className="grid gap-4 xl:grid-cols-4">
+              <SummaryCard label="Total Users" value={stats.users.total} tone="accent" />
+              <UserWindowCard title="Since Midnight" windowStats={stats.users.intervals.sinceMidnight} />
+              <UserWindowCard title="Last 7 Days" windowStats={stats.users.intervals.last7Days} />
+              <UserWindowCard title="Last Month" windowStats={stats.users.intervals.lastMonth} />
+            </div>
+
+            <div className="grid mt-5  gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <SummaryCard label="Active Games" value={stats.activeGames.total ?? '...'} tone="accent" />
+              <SummaryCard label="Public Games" value={stats.activeGames.public ?? '...'} />
+              <SummaryCard label="Private Games" value={stats.activeGames.private ?? '...'} />
+              <SummaryCard label="Connected Clients" value={stats.connectedClients ?? '...'} />
+            </div>
+
+            <div className="mt-4">
+              <ActiveGamesChartSection timeline={stats.activeGamesTimeline} />
+            </div>
+
+            <div className="mt-4 grid gap-4 xl:grid-cols-3">
+              <IntervalSection title="Since Midnight" windowStats={stats.intervals.sinceMidnight} onOpenGame={onOpenGame} />
+              <IntervalSection title="Last 24 Hours" windowStats={stats.intervals.last24Hours} onOpenGame={onOpenGame} />
+              <IntervalSection title="Last 7 Days" windowStats={stats.intervals.last7Days} onOpenGame={onOpenGame} />
+            </div>
+          </>
         ) : null}
       </div>
     </PageCorpus>

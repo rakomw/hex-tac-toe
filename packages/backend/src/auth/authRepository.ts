@@ -63,6 +63,11 @@ type StoredAdapterUser = AdapterUser & {
     lastActiveAt: number;
 };
 
+export interface AdminUserWindowStats {
+    newUsers: number;
+    activeUsers: number;
+}
+
 export interface AccountUserProfile {
     id: string;
     username: string;
@@ -403,6 +408,34 @@ export class AuthRepository implements Adapter {
         );
     }
 
+    async countUsers(): Promise<number> {
+        const collection = await this.getUsersCollection();
+        return await collection.countDocuments();
+    }
+
+    async getAdminUserWindowStats(startAt: number, endAt: number): Promise<AdminUserWindowStats> {
+        const collection = await this.getUsersCollection();
+        const [newUsers, activeUsers] = await Promise.all([
+            collection.countDocuments({
+                registeredAt: {
+                    $gte: startAt,
+                    $lte: endAt
+                }
+            }),
+            collection.countDocuments({
+                lastActiveAt: {
+                    $gte: startAt,
+                    $lte: endAt
+                }
+            })
+        ]);
+
+        return {
+            newUsers,
+            activeUsers
+        };
+    }
+
     private async getUsersCollection(): Promise<Collection<AuthUserDocument>> {
         if (this.usersCollectionPromise) {
             return this.usersCollectionPromise;
@@ -412,6 +445,8 @@ export class AuthRepository implements Adapter {
             const database = await this.mongoDatabase.getDatabase();
             const collection = database.collection<AuthUserDocument>(USERS_COLLECTION_NAME);
             await collection.createIndex({ email: 1 }, { unique: true, sparse: true });
+            await collection.createIndex({ registeredAt: -1 });
+            await collection.createIndex({ lastActiveAt: -1 });
             await this.migrateExistingUsers(collection);
             return collection;
         })().catch((error: unknown) => {

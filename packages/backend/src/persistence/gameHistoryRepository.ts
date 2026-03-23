@@ -89,6 +89,11 @@ export interface GameHistoryAdminWindowStats {
     longestGameInDuration: AdminLongestGameInDuration | null;
 }
 
+export interface ActiveGamesTimelinePoint {
+    timestamp: number;
+    activeGames: number;
+}
+
 export interface PlayerLeaderboardStats {
     profileId: string;
     displayName: string;
@@ -404,6 +409,105 @@ export class GameHistoryRepository {
         };
     }
 
+    async getActiveGamesTimeline(
+        startAt: number,
+        endAt: number,
+        bucketSizeMs: number
+    ): Promise<ActiveGamesTimelinePoint[]> {
+        const collection = await this.getCollection();
+        const safeStartAt = Math.max(0, Math.floor(startAt));
+        const safeEndAt = Math.max(safeStartAt, Math.floor(endAt));
+        const safeBucketSizeMs = Math.max(60_000, Math.floor(bucketSizeMs));
+        const overlappingGames = await collection.find(
+            {
+                startedAt: {
+                    $lte: safeEndAt
+                },
+                finishedAt: {
+                    $ne: null,
+                    $gt: safeStartAt
+                }
+            },
+            {
+                projection: {
+                    _id: 0,
+                    startedAt: 1,
+                    finishedAt: 1
+                }
+            }
+        ).toArray();
+
+        const startEvents: number[] = [];
+        const endEvents: number[] = [];
+        let activeGames = 0;
+
+        for (const game of overlappingGames) {
+            const startedAt = typeof game.startedAt === 'number' ? game.startedAt : null;
+            const finishedAt = typeof game.finishedAt === 'number' ? game.finishedAt : null;
+
+            if (startedAt === null || startedAt > safeEndAt) {
+                continue;
+            }
+
+            if (finishedAt === null || finishedAt < startedAt) {
+                continue;
+            }
+
+            const isActiveAtWindowStart = startedAt <= safeStartAt && (finishedAt === null || finishedAt > safeStartAt);
+            if (isActiveAtWindowStart) {
+                activeGames += 1;
+            }
+
+            if (startedAt > safeStartAt) {
+                startEvents.push(startedAt);
+            }
+
+            if (finishedAt !== null && finishedAt > safeStartAt && finishedAt <= safeEndAt) {
+                endEvents.push(finishedAt);
+            }
+        }
+
+        startEvents.sort((left, right) => left - right);
+        endEvents.sort((left, right) => left - right);
+
+        const points: ActiveGamesTimelinePoint[] = [];
+        let startIndex = 0;
+        let endIndex = 0;
+
+        for (let bucketStartAt = safeStartAt; bucketStartAt < safeEndAt; bucketStartAt += safeBucketSizeMs) {
+            const bucketEndExclusive = Math.min(bucketStartAt + safeBucketSizeMs, safeEndAt + 1);
+            let bucketPeakActiveGames = activeGames;
+
+            while (true) {
+                const nextStartAt = startEvents[startIndex];
+                const nextEndAt = endEvents[endIndex];
+                const nextStartIsWithinBucket = nextStartAt !== undefined && nextStartAt < bucketEndExclusive;
+                const nextEndIsWithinBucket = nextEndAt !== undefined && nextEndAt < bucketEndExclusive;
+
+                if (!nextStartIsWithinBucket && !nextEndIsWithinBucket) {
+                    break;
+                }
+
+                if (nextEndIsWithinBucket && (!nextStartIsWithinBucket || nextEndAt <= nextStartAt!)) {
+                    activeGames = Math.max(0, activeGames - 1);
+                    endIndex += 1;
+                    continue;
+                }
+
+                activeGames += 1;
+                bucketPeakActiveGames = Math.max(bucketPeakActiveGames, activeGames);
+                startIndex += 1;
+            }
+
+            points.push({
+                timestamp: bucketStartAt,
+                activeGames: bucketPeakActiveGames
+            });
+        }
+
+        return points;
+    }
+
     async getLeaderboardProfileIds(): Promise<string[]> {
         const collection = await this.getCollection();
         const players = await collection.aggregate<{ profileId: string }>([
@@ -569,6 +673,7 @@ export class GameHistoryRepository {
             const collection = database.collection<GameHistoryDocument>(mongoCollectionName);
             await collection.createIndex({ id: 1 }, { unique: true });
             await collection.createIndex({ finishedAt: -1, id: -1 });
+            await collection.createIndex({ startedAt: 1, finishedAt: 1 });
             await collection.createIndex({ sessionId: 1, finishedAt: -1 });
             await collection.createIndex({ 'players.profileId': 1, finishedAt: -1, id: -1 });
             await this.migrateExistingGames(collection);
