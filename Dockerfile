@@ -33,8 +33,6 @@ RUN corepack enable
 
 WORKDIR /app
 
-RUN pnpm install -g pino-pretty
-
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsconfig.node.json eslint.config.js ./
 COPY packages/backend/package.json packages/backend/package.json
 COPY packages/frontend/package.json packages/frontend/package.json
@@ -47,5 +45,4 @@ RUN cd packages/backend && pnpm install --frozen-lockfile
 
 EXPOSE 3001
 
-SHELL ["/bin/sh", "-c"]
-ENTRYPOINT node packages/backend/dist/server.cjs | pino-pretty -c
+CMD ["node", "packages/backend/dist/server.cjs"]
