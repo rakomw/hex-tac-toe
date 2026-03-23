@@ -26,6 +26,17 @@ interface FinishedGameReplayViewProps {
   onRetry: () => void
 }
 
+function isEditableEventTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  return target.isContentEditable
+    || target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement
+}
+
 function ResetViewIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 20 20" className="h-3.5 w-3.5 fill-none stroke-current stroke-[1.8]">
@@ -171,28 +182,74 @@ function FinishedGameReplayView({
   const navigate = useNavigate()
   const [visibleMoveCount, setVisibleMoveCount] = useState(game.moves.length)
   const [isAutoPlaying, setIsAutoPlaying] = useState(false)
+  const totalMoveCount = game.moves.length
 
   useEffect(() => {
-    setVisibleMoveCount(game.moves.length)
+    setVisibleMoveCount(totalMoveCount)
     setIsAutoPlaying(false)
-  }, [game])
+  }, [game, totalMoveCount])
+
+  const goToStart = () => {
+    setIsAutoPlaying(false)
+    setVisibleMoveCount(0)
+  }
+
+  const goToPreviousMove = () => {
+    setIsAutoPlaying(false)
+    setVisibleMoveCount((currentCount) => Math.max(0, currentCount - 1))
+  }
+
+  const goToNextMove = () => {
+    setIsAutoPlaying(false)
+    setVisibleMoveCount((currentCount) => Math.min(totalMoveCount, currentCount + 1))
+  }
+
+  const goToEnd = () => {
+    setIsAutoPlaying(false)
+    setVisibleMoveCount(totalMoveCount)
+  }
 
   useEffect(() => {
     if (!isAutoPlaying) {
       return
     }
 
-    if (visibleMoveCount >= game.moves.length) {
+    if (visibleMoveCount >= totalMoveCount) {
       setIsAutoPlaying(false)
       return
     }
 
     const timeout = window.setTimeout(() => {
-      setVisibleMoveCount((currentCount) => Math.min(game.moves.length, currentCount + 1))
+      setVisibleMoveCount((currentCount) => Math.min(totalMoveCount, currentCount + 1))
     }, 700)
 
     return () => window.clearTimeout(timeout)
-  }, [game, isAutoPlaying, visibleMoveCount])
+  }, [isAutoPlaying, totalMoveCount, visibleMoveCount])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) {
+        return
+      }
+
+      if (isEditableEventTarget(event.target)) {
+        return
+      }
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        setIsAutoPlaying(false)
+        setVisibleMoveCount((currentCount) => Math.max(0, currentCount - 1))
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        setIsAutoPlaying(false)
+        setVisibleMoveCount((currentCount) => Math.min(totalMoveCount, currentCount + 1))
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [totalMoveCount])
 
   const boardState = useMemo(
     () => buildReplayBoardState(game, visibleMoveCount),
@@ -227,7 +284,7 @@ function FinishedGameReplayView({
   })
 
   const startPlayback = () => {
-    if (visibleMoveCount >= game.moves.length) {
+    if (visibleMoveCount >= totalMoveCount) {
       setVisibleMoveCount(0)
     }
 
@@ -302,27 +359,21 @@ function FinishedGameReplayView({
                   </div>
 
                   <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
-                    <button
-                      onClick={() => {
-                        setIsAutoPlaying(false)
-                        setVisibleMoveCount(0)
-                      }}
-                      aria-label="Go to start"
-                      className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
-                    >
+                  <button
+                    onClick={goToStart}
+                    aria-label="Go to start"
+                    className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
+                  >
                       <span className="sm:hidden">
                         <StartIcon />
                       </span>
                       <span className="hidden sm:inline">Start</span>
                     </button>
-                    <button
-                      onClick={() => {
-                        setIsAutoPlaying(false)
-                        setVisibleMoveCount((currentCount) => Math.max(0, currentCount - 1))
-                      }}
-                      disabled={visibleMoveCount === 0}
-                      aria-label="Previous move"
-                      className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
+                  <button
+                    onClick={goToPreviousMove}
+                    disabled={visibleMoveCount === 0}
+                    aria-label="Previous move"
+                    className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
                     >
                       <span className="sm:hidden">
                         <PreviousIcon />
@@ -346,28 +397,22 @@ function FinishedGameReplayView({
                       </span>
                       <span className="hidden sm:inline">{isAutoPlaying ? 'Pause' : 'Play'}</span>
                     </button>
-                    <button
-                      onClick={() => {
-                        setIsAutoPlaying(false)
-                        setVisibleMoveCount((currentCount) => Math.min(game.moves.length, currentCount + 1))
-                      }}
-                      disabled={visibleMoveCount >= game.moves.length}
-                      aria-label="Next move"
-                      className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
-                    >
+                  <button
+                    onClick={goToNextMove}
+                    disabled={visibleMoveCount >= totalMoveCount}
+                    aria-label="Next move"
+                    className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
+                  >
                       <span className="sm:hidden">
                         <NextIcon />
                       </span>
                       <span className="hidden sm:inline">Next</span>
                     </button>
-                    <button
-                      onClick={() => {
-                        setIsAutoPlaying(false)
-                        setVisibleMoveCount(game.moves.length)
-                      }}
-                      aria-label="Go to end"
-                      className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
-                    >
+                  <button
+                    onClick={goToEnd}
+                    aria-label="Go to end"
+                    className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
+                  >
                       <span className="sm:hidden">
                         <EndIcon />
                       </span>
@@ -463,10 +508,7 @@ function FinishedGameReplayView({
 
             <div className="mt-4 min-h-0 flex-1 space-y-3 xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
               <button
-                onClick={() => {
-                  setIsAutoPlaying(false)
-                  setVisibleMoveCount(0)
-                }}
+                onClick={goToStart}
                 className={`w-full min-w-0 overflow-hidden rounded-[1.5rem] border p-4 text-left transition ${visibleMoveCount === 0
                   ? 'border-sky-300/30 bg-sky-400/12'
                   : 'border-white/10 bg-white/6 hover:bg-white/10'
