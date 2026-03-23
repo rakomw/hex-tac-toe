@@ -4,6 +4,7 @@ import babel from '@rolldown/plugin-babel'
 import { resolveVersionHash } from '../../build/resolveVersionHash'
 
 export default defineConfig(({ isSsrBuild }) => ({
+    assetsInclude: ['**/*.aac'],
 
     define: {
         __APP_VERSION_HASH__: JSON.stringify(resolveVersionHash())
