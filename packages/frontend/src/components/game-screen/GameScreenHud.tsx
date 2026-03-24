@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import type { ShutdownState } from '@ih3t/shared'
+import type { LobbyOptions, ShutdownState } from '@ih3t/shared'
 import GameHudShell from './GameHudShell'
 import { ShutdownTimer } from './ShutdownTimer'
 import HudInfoBlock from './HudInfoBlock'
+import { formatTimeControl } from '../../utils/gameTimeControl'
 
 export type HudPlayerInfo = {
   playerId: string,
@@ -17,6 +18,8 @@ interface GameScreenHudProps {
 
   occupiedCellCount: number
   renderableCellCount: number
+
+  gameOptions: LobbyOptions
 
   shutdown: ShutdownState | null
 
@@ -37,6 +40,7 @@ function MenuIcon() {
 
 function GameScreenHud({
   sessionId,
+
   players,
   localPlayerId,
 
@@ -44,6 +48,7 @@ function GameScreenHud({
   renderableCellCount,
 
   shutdown,
+  gameOptions,
 
   leaveLabel = 'Leave Game',
   onLeave,
@@ -76,6 +81,11 @@ function GameScreenHud({
       )}
 
       <div className="mt-4 grid grid-cols-2 gap-4 text-sm md:grid-cols-1">
+        <HudInfoBlock label="Game">
+          <div className="text-white">{gameOptions.rated ? 'Rated Game' : 'Casual Game'}</div>
+          <div className="text-slate-300">Clock {formatTimeControl(gameOptions.timeControl)}</div>
+        </HudInfoBlock>
+
         <HudInfoBlock label="Cells">
           <div className="text-white">{renderableCellCount} active</div>
           <div className="text-slate-300">{occupiedCellCount} occupied</div>

@@ -141,6 +141,8 @@ function GameScreen({
         {interactionEnabled && (
           <GameScreenHud
             sessionId={sessionId}
+            gameOptions={gameOptions}
+
             players={hudPlayerInfo}
             localPlayerId={currentPlayerId}
 
