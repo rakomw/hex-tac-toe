@@ -108,7 +108,7 @@ export class AuthRepository implements Adapter {
         const document: AuthUserDocument = {
             _id: new ObjectId(),
             role: 'user',
-            highestElo: DEFAULT_PLAYER_ELO,
+            elo: DEFAULT_PLAYER_ELO,
             preferences: {
                 ...DEFAULT_ACCOUNT_PREFERENCES,
                 changelogReadAt: Date.now()
