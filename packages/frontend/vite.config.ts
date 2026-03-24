@@ -1,6 +1,7 @@
 import { defineConfig, UserConfig } from 'vite'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
+import tailwindcss from '@tailwindcss/vite'
 import { resolveVersionHash } from '../../build/resolveVersionHash'
 
 export default defineConfig(({ isSsrBuild }) => ({
@@ -10,8 +11,9 @@ export default defineConfig(({ isSsrBuild }) => ({
         __APP_VERSION_HASH__: JSON.stringify(resolveVersionHash())
     },
     plugins: [
+        tailwindcss(),
         react(),
-        babel({ presets: [reactCompilerPreset()] })
+        babel({ presets: [reactCompilerPreset()] }),
     ],
     ssr: isSsrBuild ? { noExternal: true } : undefined,
     build: {
