@@ -21,10 +21,7 @@ import { getSocketClientInfo as parseSocketClientInfo } from './clientInfo';
 import { APP_VERSION_HASH } from '../appVersion';
 import { CorsConfiguration } from './cors';
 import { SessionError, SessionManager } from '../session/sessionManager';
-import type {
-    ClientGameParticipation,
-    PublicGameStatePayload,
-} from '../session/types';
+import type { ClientGameParticipation, } from '../session/types';
 import { Mutex } from 'async-mutex';
 
 type Participation = {
@@ -79,8 +76,11 @@ export class SocketServerGateway {
             sessionChat(event) {
                 io.to(event.sessionId).emit('session-chat', event);
             },
-            gameStateUpdated(payload: PublicGameStatePayload) {
-                io.to(payload.sessionId).emit('game-state', payload);
+            gameStateUpdated(event) {
+                io.to(event.sessionId).emit('game-state', event);
+            },
+            gameCellPlacement(event) {
+                io.to(event.sessionId).emit('game-cell-place', event);
             }
         });
         this.serverShutdownService.setEventHandlers({
@@ -443,16 +443,12 @@ export class SocketServerGateway {
 
         socket.join(participation.session.id);
         socket.emit('session-joined', {
-            sessionId: participation.session.id,
             session: participation.session,
+            gameState: participation.gameState,
 
             participantId: participation.participantId,
             participantRole: participation.participantRole,
         });
-
-        if (participation.gameState) {
-            socket.emit('game-state', participation.gameState);
-        }
     }
 
     private bindSocketHandler<T extends keyof ClientToServerEvents, E = Parameters<ClientToServerEvents[T]>[0]>(

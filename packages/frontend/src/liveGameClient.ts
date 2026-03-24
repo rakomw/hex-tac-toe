@@ -107,24 +107,17 @@ export function startLiveGameClient() {
 
     socket.on('session-joined', data => {
         useLiveGameStore.getState().setupSession(data)
-        navigateToSession(data.sessionId)
+        navigateToSession(data.session.id)
     })
 
     socket.on('session-updated',
-        data => useLiveGameStore.getState().updateSession({ ...data.session, id: data.sessionId })
+        data => useLiveGameStore.getState().handleSessionUpdate({ ...data.session, id: data.sessionId })
     )
 
-    socket.on('game-state', data => useLiveGameStore.getState().updateBoard(data))
+    socket.on('game-state', data => useLiveGameStore.getState().handleGameState(data))
+    socket.on('game-cell-place', data => useLiveGameStore.getState().handleGameCellPlace(data))
 
     socket.on('session-chat', data => useLiveGameStore.getState().handleSessionChatEvent(data))
-
-    socket.on('participant-joined', data => {
-        useLiveGameStore.getState().updateSession({ ...data.session, id: data.sessionId })
-    })
-
-    socket.on('participant-left', data => {
-        useLiveGameStore.getState().updateSession({ ...data.session, id: data.sessionId })
-    })
 
     socket.on('error', (error: string) => {
         console.error('Socket error:', error)

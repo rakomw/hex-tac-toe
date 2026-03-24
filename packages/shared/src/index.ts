@@ -221,7 +221,7 @@ export function isCellWithinPlacementRadius(
     return placedCells.some((cell) => getHexDistance(cell, candidate) <= radius);
 }
 
-export const GameState = z.object({
+export const zGameState = z.object({
     cells: z.array(zBoardCell),
     winner: zGameWinner.nullable(),
     playerTiles: z.record(z.string(), zPlayerTileConfig),
@@ -230,9 +230,9 @@ export const GameState = z.object({
     currentTurnExpiresAt: zTimestamp.nullable(),
     playerTimeRemainingMs: z.record(z.string(), z.number().int().nonnegative())
 });
-export type GameState = z.infer<typeof GameState>;
+export type GameState = z.infer<typeof zGameState>;
 
-export const zBoardState = GameState;
+export const zBoardState = zGameState;
 export type BoardState = GameState;
 
 export const zSandboxPositionId = z.string().trim().regex(/^[a-z0-9]{7}$/i);
@@ -637,8 +637,8 @@ export const zFinishedGamesPage = z.object({
 export type FinishedGamesPage = z.infer<typeof zFinishedGamesPage>;
 
 export const zSessionJoinedEvent = z.object({
-    sessionId: zIdentifier,
     session: zSessionInfo,
+    gameState: zGameState,
 
     participantId: zIdentifier,
     participantRole: zSessionParticipantRole,
@@ -660,10 +660,16 @@ export type SessionChatEvent = z.infer<typeof zSessionChatEvent>;
 
 export const zGameStateEvent = z.object({
     sessionId: zIdentifier,
-    gameId: zIdentifier,
-    gameState: GameState
+    gameState: zGameState.partial()
 });
 export type GameStateEvent = z.infer<typeof zGameStateEvent>;
+
+export const zGameCellPlaceEvent = z.object({
+    sessionId: zIdentifier,
+    state: zGameState.partial(),
+    cell: zBoardCell,
+});
+export type GameCellPlaceEvent = z.infer<typeof zGameCellPlaceEvent>;
 
 export const zPlaceCellRequest = z.object({
     x: zCoordinate,
@@ -682,6 +688,8 @@ export const zServerToClientEvents = z.custom<{
     'session-chat': (data: SessionChatEvent) => void;
 
     'game-state': (data: GameStateEvent) => void;
+    'game-cell-place': (data: GameCellPlaceEvent) => void;
+
     error: (error: string) => void;
 }>();
 export type ServerToClientEvents = z.infer<typeof zServerToClientEvents>;

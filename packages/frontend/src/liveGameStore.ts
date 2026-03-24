@@ -1,5 +1,5 @@
 import {
-    createEmptyGameState,
+    GameCellPlaceEvent,
     GameStateEvent,
     SessionChatEvent,
     SessionJoinedEvent,
@@ -20,7 +20,7 @@ type ActiveSession = SessionInfo & {
     localParticipantId: string
     localParticipantRole: SessionParticipantRole
 
-    gameState: GameState | null
+    gameState: GameState
 };
 
 interface LiveGameStoreState {
@@ -42,10 +42,11 @@ interface LiveGameStoreState {
     setupSession: (payload: SessionJoinedEvent) => void
     clearSession: () => void
 
-    updateSession: (payload: Partial<SessionInfo> & { id: SessionInfo["id"] }) => void
+    handleSessionUpdate: (payload: Partial<SessionInfo> & { id: SessionInfo["id"] }) => void
     handleSessionChatEvent: (payload: SessionChatEvent) => void
 
-    updateBoard: (payload: GameStateEvent) => void
+    handleGameState: (payload: GameStateEvent) => void
+    handleGameCellPlace: (payload: GameCellPlaceEvent) => void
 }
 
 export const useLiveGameStore = create<LiveGameStoreState>()(
@@ -95,14 +96,13 @@ export const useLiveGameStore = create<LiveGameStoreState>()(
             state.pendingSessionJoin = { status: 'idle', sessionId: null, errorMessage: null }
             state.session = {
                 ...payload.session,
+                gameState: payload.gameState,
 
                 localParticipantId: payload.participantId,
                 localParticipantRole: payload.participantRole,
-
-                gameState: null
             }
         }),
-        updateSession: (payload) => set(state => {
+        handleSessionUpdate: (payload) => set(state => {
             if (state.session?.id !== payload.id) {
                 /* update is not for the currently active session */
                 return;
@@ -119,12 +119,23 @@ export const useLiveGameStore = create<LiveGameStoreState>()(
             chat.displayNames[event.message.senderId] = event.senderDisplayName;
             chat.messages = [...chat.messages, event.message];
         }),
-        updateBoard: event => set(state => {
+        handleGameState: event => set(state => {
             if (state.session?.id !== event.sessionId) {
                 return;
             }
 
-            state.session.gameState = event.gameState
+            Object.assign(state.session.gameState, event.gameState);
+        }),
+        handleGameCellPlace: event => set(state => {
+            if (state.session?.id !== event.sessionId) {
+                return;
+            }
+
+            Object.assign(state.session.gameState, event.state);
+            state.session.gameState.cells = [
+                ...state.session.gameState.cells,
+                event.cell
+            ];
         }),
         clearSession: () => set(state => {
             state.pendingSessionJoin = { status: 'idle', sessionId: null, errorMessage: null }

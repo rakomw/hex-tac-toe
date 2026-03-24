@@ -3,11 +3,11 @@ import {
     cloneGameState,
     createStartedGameState,
     GameRuleError,
-    type GameState,
     type SandboxGamePosition,
     type SandboxPlayerSlot,
     type SandboxPositionResponse,
-    type SessionParticipant
+    type SessionParticipant,
+    type GameState
 } from '@ih3t/shared'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'

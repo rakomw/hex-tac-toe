@@ -10,6 +10,8 @@ import type {
     SessionChatSenderId,
     PlayerRating,
     SessionState,
+    BoardCell,
+    GameState,
 } from '@ih3t/shared';
 import { buildPlayerTileConfigMap } from '@ih3t/shared';
 import assert from 'node:assert';
@@ -28,7 +30,6 @@ import { GameTimeControlError, GameTimeControlManager } from '../simulation/game
 import type {
     CreateSessionParams,
     JoinSessionParams,
-    PublicGameStatePayload,
     PlayerLeaveSource,
     RematchRequestResult,
     SessionManagerEventHandlers,
@@ -313,7 +314,7 @@ export class SessionManager {
     }
 
     async leaveSession(session: ServerGameSession, participantId: string, source: PlayerLeaveSource) {
-        session.lock.runExclusive(() => this.leaveSessionLocked(session, participantId, source));
+        await session.lock.runExclusive(() => this.leaveSessionLocked(session, participantId, source));
     }
 
     private leaveSessionLocked(session: ServerGameSession, participantId: string, source: PlayerLeaveSource): void {
@@ -395,13 +396,15 @@ export class SessionManager {
         });
 
         if (session.gameState.winner) {
+            /* emit full state just to ensure everyone sees the same */
             this.emitGameState(session);
+
             await this.finishSessionLocked(session, 'six-in-a-row', session.gameState.winner.playerId);
             return;
         }
 
         this.timeControl.syncTurnTimeout(session, this.handleTurnExpired);
-        this.emitGameState(session);
+        this.emitCellPlacement(session, session.gameState.cells.at(-1)!);
     }
 
     sendChatMessage(session: ServerGameSession, participantId: string, message: string) {
@@ -906,7 +909,7 @@ export class SessionManager {
 
         return {
             session: this.toSessionInfo(session),
-            gameState: this.getPublicGameStatePayload(session),
+            gameState: this.simulation.getPublicGameState(session.gameState),
 
             participantId,
             participantRole: participation.role
@@ -976,15 +979,22 @@ export class SessionManager {
     }
 
     private emitGameState(session: ServerGameSession): void {
-        this.eventHandlers.gameStateUpdated?.(this.getPublicGameStatePayload(session));
+        this.eventHandlers.gameStateUpdated?.({
+            sessionId: session.id,
+            gameState: this.simulation.getPublicGameState(session.gameState)
+        });
     }
 
-    private getPublicGameStatePayload(session: ServerGameSession): PublicGameStatePayload {
-        return {
+    private emitCellPlacement(session: ServerGameSession, cell: BoardCell) {
+        const state = this.simulation.getPublicGameState(session.gameState) as Partial<GameState>;
+        delete state.cells;
+        delete state.playerTiles;
+
+        this.eventHandlers.gameCellPlacement?.({
             sessionId: session.id,
-            gameId: session.gameId,
-            gameState: this.simulation.getPublicGameState(session.gameState)
-        };
+            state,
+            cell: cell,
+        });
     }
 
     getSession(sessionId: string): ServerGameSession | null {
@@ -1104,7 +1114,7 @@ export class SessionManager {
 
             return {
                 session: this.toSessionInfo(info.session),
-                gameState: this.getPublicGameStatePayload(info.session),
+                gameState: this.simulation.getPublicGameState(info.session.gameState),
 
                 participantId: info.participant.id,
                 participantRole: info.role,
@@ -1145,7 +1155,7 @@ export class SessionManager {
 
             return {
                 session: this.toSessionInfo(info.session),
-                gameState: this.getPublicGameStatePayload(info.session),
+                gameState: this.simulation.getPublicGameState(info.session.gameState),
 
                 participantId: info.participant.id,
                 participantRole: info.role

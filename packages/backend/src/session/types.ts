@@ -1,6 +1,8 @@
 import {
     cloneGameState,
     createEmptyGameState,
+    GameCellPlaceEvent,
+    GameStateEvent,
     PlayerRating,
     SessionChatEvent,
     SessionChatSenderId,
@@ -67,12 +69,6 @@ export interface ServerGameSession {
 
 export type PlayerLeaveSource = 'leave-session' | 'disconnect';
 
-export interface PublicGameStatePayload {
-    sessionId: string;
-    gameId: string;
-    gameState: GameState;
-}
-
 export interface JoinSessionParams {
     deviceId: string;
 
@@ -104,7 +100,8 @@ export interface SessionManagerEventHandlers {
     lobbyListUpdated?: (lobbies: LobbyInfo[]) => void;
     sessionUpdated?: (event: SessionUpdatedEvent) => void;
     sessionChat?: (event: SessionChatEvent) => void;
-    gameStateUpdated?: (payload: PublicGameStatePayload) => void;
+    gameStateUpdated?: (payload: GameStateEvent) => void;
+    gameCellPlacement?: (payload: GameCellPlaceEvent) => void,
 }
 
 export interface RematchRequestResult {
@@ -115,7 +112,7 @@ export interface RematchRequestResult {
 
 export type ClientGameParticipation = {
     session: SessionInfo
-    gameState?: PublicGameStatePayload
+    gameState: GameState
 
     participantId: string
     participantRole: SessionParticipantRole
