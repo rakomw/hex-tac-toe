@@ -27,7 +27,7 @@ export async function createSandboxPosition(name: string, gamePosition: SandboxG
 
 export function useQuerySandboxPosition(positionId: string | null, options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: positionId ? queryKeys.sandboxPosition(positionId) : ['sandbox-position', 'unknown'],
+    queryKey: queryKeys.sandboxPosition(positionId),
     queryFn: () => {
       if (!positionId) {
         throw new Error('Missing sandbox position id.')

@@ -9,6 +9,7 @@ import type {
     SessionChatMessageId,
     SessionChatSenderId,
     PlayerRating,
+    SessionState,
 } from '@ih3t/shared';
 import { buildPlayerTileConfigMap } from '@ih3t/shared';
 import assert from 'node:assert';
@@ -1175,42 +1176,49 @@ export class SessionManager {
     }
 
     private toSessionInfo(session: ServerGameSession): SessionInfo {
-        const base = {
+        let state: SessionState;
+        switch (session.state) {
+            case 'lobby':
+                state = {
+                    status: "lobby",
+                };
+                break;
+
+            case 'in-game':
+                state = {
+                    status: "in-game",
+
+                    gameId: session.gameId,
+                    startedAt: session.startedAt!
+                };
+                break;
+
+            case 'finished':
+                state = {
+                    status: "finished",
+
+                    gameId: session.gameId,
+
+                    finishReason: session.finishReason ?? "terminated",
+                    rematchAcceptedPlayerIds: session.rematchAcceptedPlayerIds,
+
+                    winningPlayerId: session.winningPlayerId
+                };
+                break;
+        }
+
+        return {
             id: session.id,
-            players: cloneParticipants(session.players),
-            spectators: cloneParticipants(session.spectators),
             gameOptions: cloneGameOptions(session.gameOptions),
 
+            players: cloneParticipants(session.players),
+            spectators: cloneParticipants(session.spectators),
+
+            state,
             chat: {
                 displayNames: session.chatNames,
                 messages: session.chatMessages.map(cloneChatMessage),
-            }
-        } satisfies Partial<SessionInfo>;
-
-        switch (session.state) {
-            case 'lobby':
-                return {
-                    ...base,
-                    state: 'lobby'
-                };
-
-            case 'in-game':
-                return {
-                    ...base,
-                    state: 'in-game',
-                    startedAt: session.startedAt ?? session.createdAt,
-                    gameId: session.gameId
-                };
-
-            case 'finished':
-                return {
-                    ...base,
-                    state: 'finished',
-                    gameId: session.gameId,
-                    finishReason: session.finishReason ?? 'terminated',
-                    winningPlayerId: session.winningPlayerId,
-                    rematchAcceptedPlayerIds: [...session.rematchAcceptedPlayerIds]
-                };
+            },
         }
     }
 

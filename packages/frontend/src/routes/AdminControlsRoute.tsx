@@ -9,10 +9,10 @@ import {
   updateAdminServerSettings
 } from '../query/adminClient'
 import AdminControlsScreen from '../components/AdminControlsScreen'
-import { useLiveGameStore } from '../liveGameStore'
 import { useQueryAccount } from '../query/accountClient'
 import { useQueryAdminServerSettings } from '../query/adminClient'
 import { useQueryAvailableSessions } from '../query/sessionClient'
+import { useQueryServerShutdown } from '../query/serverClient'
 
 function showSuccessToast(message: string) {
   toast.success(message, {
@@ -27,7 +27,7 @@ function showErrorToast(message: string) {
 }
 
 function AdminControlsRoute() {
-  const shutdown = useLiveGameStore(state => state.shutdown)
+  const shutdown = useQueryServerShutdown().data ?? null;
   const accountQuery = useQueryAccount({ enabled: true })
   const isAdmin = accountQuery.data?.user?.role === 'admin'
   const availableSessionsQuery = useQueryAvailableSessions({ enabled: isAdmin })
@@ -62,9 +62,9 @@ function AdminControlsRoute() {
 
     setIsScheduling(true)
     try {
-      const response = await scheduleShutdown(Math.floor(parsedMinutes))
-      const scheduledMinutes = response.shutdown
-        ? Math.max(1, Math.round((response.shutdown.gracefulTimeout - response.shutdown.scheduledAt) / 60_000))
+      const shutdown = await scheduleShutdown(Math.floor(parsedMinutes))
+      const scheduledMinutes = shutdown
+        ? Math.max(1, Math.round((shutdown.gracefulTimeout - shutdown.scheduledAt) / 60_000))
         : Math.floor(parsedMinutes)
       showSuccessToast(`Shutdown scheduled in ${scheduledMinutes} minute${scheduledMinutes === 1 ? '' : 's'}.`)
     } catch (error) {

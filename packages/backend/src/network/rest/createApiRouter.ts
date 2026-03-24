@@ -353,6 +353,10 @@ export class ApiRouter {
             res.json(response);
         });
 
+        router.get('/server/shutdown', express.json(), async (_req, res) => {
+            res.json(this.serverShutdownService.getShutdownState());
+        });
+
         router.post('/sessions/:sessionId/terminate', async (req, res) => {
             const user = await this.requireAdminUser(req, res);
             if (!user) {

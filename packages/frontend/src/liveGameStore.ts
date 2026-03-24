@@ -1,219 +1,134 @@
 import {
-  cloneGameState,
-  createEmptyGameState,
-  SessionChatEvent,
-  type GameState,
-  type ServerToClientEvents,
-  type SessionInfo,
-  type ShutdownState
+    createEmptyGameState,
+    GameStateEvent,
+    SessionChatEvent,
+    SessionJoinedEvent,
+    SessionParticipantRole,
+    type GameState,
+    type SessionInfo,
 } from '@ih3t/shared'
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 
-type SessionJoinedPayload = Parameters<ServerToClientEvents['session-joined']>[0]
-type SessionUpdatedPayload = Parameters<ServerToClientEvents['session-updated']>[0]
-type GameStatePayload = Parameters<ServerToClientEvents['game-state']>[0]
-
-type ActiveGameState = {
-  gameId: string
-  gameState: GameState
-}
-
-type SessionScreen =
-  | { kind: 'none' }
-  | {
-    kind: 'session'
-    sessionId: string
-    session: SessionInfo
-    game: ActiveGameState | null
-  }
-
 type PendingSessionJoinState =
-  | { status: 'idle'; sessionId: null; errorMessage: null }
-  | { status: 'pending'; sessionId: string; errorMessage: null }
-  | { status: 'not-found'; sessionId: string; errorMessage: string }
-  | { status: 'failed'; sessionId: string; errorMessage: string }
+    | { status: 'idle'; sessionId: null; errorMessage: null }
+    | { status: 'pending'; sessionId: string; errorMessage: null }
+    | { status: 'not-found'; sessionId: string; errorMessage: string }
+    | { status: 'failed'; sessionId: string; errorMessage: string }
+
+type ActiveSession = SessionInfo & {
+    localParticipantId: string
+    localParticipantRole: SessionParticipantRole
+
+    gameState: GameState | null
+};
 
 interface LiveGameStoreState {
-  connection: {
-    isConnected: boolean
-    isInitialized: boolean
-    currentPlayerId: string
-  }
-  shutdown: ShutdownState | null
-  screen: SessionScreen
-  pendingSessionJoin: PendingSessionJoinState
-  setConnected: () => void
-  setInitialized: () => void
-  setDisconnected: () => void
-  setShutdownState: (shutdown: ShutdownState | null) => void
-  startJoiningSession: (sessionId: string) => void
-  failJoiningSession: (sessionId: string, errorMessage: string) => void
-  setupSession: (payload: SessionJoinedPayload) => void
-  updateSession: (payload: SessionUpdatedPayload) => void
-  handleSessionChatEvent: (payload: SessionChatEvent) => void
-  updateBoard: (payload: GameStatePayload) => void
-  resetToLobby: () => void
-}
-
-function cloneSessionInfo(session: SessionInfo): SessionInfo {
-  const base = {
-    ...session,
-    players: session.players.map(player => ({ ...player })),
-    spectators: session.spectators.map(spectator => ({ ...spectator })),
-    gameOptions: {
-      ...session.gameOptions,
-      timeControl: { ...session.gameOptions.timeControl }
+    connection: {
+        isConnected: boolean
+        isInitialized: boolean
     }
-  }
 
-  if (session.state === 'finished') {
-    return {
-      ...base,
-      state: 'finished',
-      gameId: session.gameId,
-      finishReason: session.finishReason,
-      winningPlayerId: session.winningPlayerId,
-      rematchAcceptedPlayerIds: [...session.rematchAcceptedPlayerIds]
-    }
-  }
+    session: ActiveSession | null
+    pendingSessionJoin: PendingSessionJoinState
 
-  if (session.state === 'in-game') {
-    return {
-      ...base,
-      state: 'in-game',
-      startedAt: session.startedAt,
-      gameId: session.gameId
-    }
-  }
+    onSocketConnected: () => void
+    onSocketInitialized: () => void
+    onSocketDisconnected: () => void
 
-  return {
-    ...base,
-    state: 'lobby'
-  }
-}
+    startJoiningSession: (sessionId: string) => void
+    failJoiningSession: (sessionId: string, errorMessage: string) => void
 
-function deriveGameState(session: SessionInfo): ActiveGameState | null {
-  if (session.state === 'lobby') {
-    return null
-  }
+    setupSession: (payload: SessionJoinedEvent) => void
+    clearSession: () => void
 
-  return {
-    gameId: session.gameId,
-    gameState: createEmptyGameState()
-  }
-}
+    updateSession: (payload: Partial<SessionInfo> & { id: SessionInfo["id"] }) => void
+    handleSessionChatEvent: (payload: SessionChatEvent) => void
 
-export function getActiveSessionId(screen: SessionScreen): string | null {
-  return screen.kind === 'session' ? screen.sessionId : null
+    updateBoard: (payload: GameStateEvent) => void
 }
 
 export const useLiveGameStore = create<LiveGameStoreState>()(
-  immer((set) => ({
-    connection: {
-      isConnected: false,
-      isInitialized: false,
-      currentPlayerId: ''
-    },
-    shutdown: null,
-    screen: { kind: 'none' },
-    pendingSessionJoin: { status: 'idle', sessionId: null, errorMessage: null },
-    setConnected: () =>
-      set((state) => {
-        state.connection.isConnected = true
-        state.connection.isInitialized = false
-      }),
-    setInitialized: () => set(state => { state.connection.isInitialized = true }),
-    setDisconnected: () =>
-      set((state) => {
-        state.connection.isConnected = false
-        state.connection.isInitialized = false
-        state.connection.currentPlayerId = ''
-        state.shutdown = null
-        state.screen = { kind: 'none' }
-        state.pendingSessionJoin = { status: 'idle', sessionId: null, errorMessage: null }
-      }),
-    setShutdownState: (shutdown) =>
-      set((state) => {
-        state.shutdown = shutdown ? { ...shutdown } : null
-      }),
-    startJoiningSession: (sessionId) =>
-      set((state) => {
-        state.pendingSessionJoin = {
-          status: 'pending',
-          sessionId,
-          errorMessage: null
-        }
-      }),
-    failJoiningSession: (sessionId, errorMessage) =>
-      set((state) => {
-        if (state.pendingSessionJoin.sessionId !== sessionId) {
-          return
-        }
+    immer<LiveGameStoreState>((set) => ({
+        connection: {
+            isConnected: false,
+            isInitialized: false,
+            currentPlayerId: ''
+        },
+        pendingSessionJoin: { status: 'idle', sessionId: null, errorMessage: null },
+        session: null,
+        game: null,
 
-        state.pendingSessionJoin = {
-          status: errorMessage === 'Session not found' ? 'not-found' : 'failed',
-          sessionId,
-          errorMessage
-        }
-      }),
-    setupSession: (payload) =>
-      set((state) => {
-        const session = cloneSessionInfo(payload.session)
-        state.pendingSessionJoin = { status: 'idle', sessionId: null, errorMessage: null }
-        state.connection.currentPlayerId = payload.participantId
-        state.screen = {
-          kind: 'session',
-          sessionId: payload.sessionId,
-          session,
-          game: deriveGameState(session)
-        }
-      }),
-    updateSession: (payload) =>
-      set((state) => {
-        if (state.screen.kind !== 'session' || state.screen.sessionId !== payload.sessionId) {
-          return
-        }
+        onSocketConnected: () => set(state => {
+            state.connection.isConnected = true
+            state.connection.isInitialized = false
+            state.session = null
+        }),
+        onSocketInitialized: () => set(state => {
+            state.connection.isInitialized = true
+        }),
+        onSocketDisconnected: () => set(state => {
+            state.connection.isConnected = false
+            state.connection.isInitialized = false
+            state.pendingSessionJoin = { status: 'idle', sessionId: null, errorMessage: null }
+        }),
 
-        const nextSession = cloneSessionInfo(payload.session)
-        state.screen.session = nextSession
+        startJoiningSession: (sessionId) => set(state => {
+            state.pendingSessionJoin = {
+                status: 'pending',
+                sessionId,
+                errorMessage: null
+            }
+        }),
+        failJoiningSession: (sessionId, errorMessage) => set(state => {
+            if (state.pendingSessionJoin.sessionId !== sessionId) {
+                return
+            }
 
-        if (nextSession.state === 'lobby') {
-          state.screen.game = null
-          return
-        }
+            state.pendingSessionJoin = {
+                status: errorMessage === 'Session not found' ? 'not-found' : 'failed',
+                sessionId,
+                errorMessage
+            }
+        }),
+        setupSession: (payload) => set(state => {
+            state.pendingSessionJoin = { status: 'idle', sessionId: null, errorMessage: null }
+            state.session = {
+                ...payload.session,
 
-        if (!state.screen.game || state.screen.game.gameId !== nextSession.gameId) {
-          state.screen.game = {
-            gameId: nextSession.gameId,
-            gameState: createEmptyGameState()
-          }
-        }
-      }),
-    handleSessionChatEvent: event => set(state => {
-      if (state.screen.kind !== 'session' || state.screen.sessionId !== event.sessionId) {
-        return
-      }
+                localParticipantId: payload.participantId,
+                localParticipantRole: payload.participantRole,
 
-      const chat = state.screen.session.chat;
-      chat.displayNames[event.message.senderId] = event.senderDisplayName;
-      chat.messages = [...chat.messages, event.message];
-    }),
-    updateBoard: (payload) =>
-      set((state) => {
-        if (state.screen.kind !== 'session' || state.screen.sessionId !== payload.sessionId) {
-          return
-        }
+                gameState: null
+            }
+        }),
+        updateSession: (payload) => set(state => {
+            if (state.session?.id !== payload.id) {
+                /* update is not for the currently active session */
+                return;
+            }
 
-        state.screen.game = {
-          gameId: payload.gameId,
-          gameState: cloneGameState(payload.gameState)
-        }
-      }),
-    resetToLobby: () =>
-      set((state) => {
-        state.pendingSessionJoin = { status: 'idle', sessionId: null, errorMessage: null }
-        state.screen = { kind: 'none' }
-      })
-  }))
+            Object.assign(state.session, payload);
+        }),
+        handleSessionChatEvent: event => set(state => {
+            if (state.session?.id !== event.sessionId) {
+                return;
+            }
+
+            const chat = state.session.chat;
+            chat.displayNames[event.message.senderId] = event.senderDisplayName;
+            chat.messages = [...chat.messages, event.message];
+        }),
+        updateBoard: event => set(state => {
+            if (state.session?.id !== event.sessionId) {
+                return;
+            }
+
+            state.session.gameState = event.gameState
+        }),
+        clearSession: () => set(state => {
+            state.pendingSessionJoin = { status: 'idle', sessionId: null, errorMessage: null }
+            state.session = null
+        })
+    }))
 )

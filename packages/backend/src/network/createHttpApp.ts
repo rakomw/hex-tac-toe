@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { GameTimeControl, SandboxPlayerSlot, SessionParticipant } from '@ih3t/shared';
+import type { GameTimeControl, SandboxPlayerSlot, SessionInfo, SessionParticipant } from '@ih3t/shared';
 import type { Logger } from 'pino';
 import { inject, injectable } from 'tsyringe';
 import { z } from 'zod';
@@ -596,6 +596,6 @@ export class HttpApplication {
         }
     }
 }
-function canJoinSession(session: { state: string; players: SessionParticipant[] }): boolean {
-    return session.state === 'lobby' && session.players.length < 2;
+function canJoinSession(session: SessionInfo): boolean {
+    return session.state.status === "lobby" && session.players.length < 2;
 }

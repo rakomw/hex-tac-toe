@@ -83,7 +83,7 @@ export function useQueryAccount(options?: { enabled?: boolean }) {
 
 export function useQueryPublicAccount(profileId: string | null, options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: profileId ? queryKeys.publicAccount(profileId) : ['account', 'public', 'unknown'],
+    queryKey: queryKeys.publicAccount(profileId),
     queryFn: () => {
       if (!profileId) {
         throw new Error('Missing profile id.')
@@ -116,7 +116,7 @@ export function useQueryAccountStatistics(options?: { enabled?: boolean }) {
 
 export function useQueryPublicAccountStatistics(profileId: string | null, options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: profileId ? queryKeys.publicAccountStatistics(profileId) : ['account', 'public', 'unknown', 'statistics'],
+    queryKey: queryKeys.publicAccountStatistics(profileId),
     queryFn: () => {
       if (!profileId) {
         throw new Error('Missing profile id.')

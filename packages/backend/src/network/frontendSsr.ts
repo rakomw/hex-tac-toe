@@ -95,6 +95,9 @@ export class FrontendSsrRenderer {
       user: currentUser
     }
 
+    /* never assume shutdown in SSR */
+    queryClient.setQueryData(queryKeys.serverShutdown, null)
+
     queryClient.setQueryData(queryKeys.account, accountResponse)
     if (currentUser) {
       const accountPreferencesResponse: AccountPreferencesResponse = {

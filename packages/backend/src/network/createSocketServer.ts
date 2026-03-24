@@ -401,26 +401,36 @@ export class SocketServerGateway {
         io: Server<ClientToServerEvents, ServerToClientEvents>,
         lobbies: LobbyInfo[]
     ): void {
+        const wasNull = this.pendingLobbyList === null;
+        this.pendingLobbyList = lobbies;
+
         if (this.lobbyListBroadcastTimer) {
             /* update already pending */
-            this.pendingLobbyList = lobbies;
             return;
-        } else if (!this.pendingLobbyList) {
-            /* send update now and schedule update in LOBBY_LIST_DEBOUNCE_MS if updated */
-            io.emit('lobby-list', lobbies);
+        } else if (wasNull) {
+            /*
+             * Send update now but aggregate instantanious updates.
+             * Set the lobbyListBroadcastTimer to wait LOBBY_LIST_DEBOUNCE_MS until the next update
+             */
+            setTimeout(() => {
+                if (!this.pendingLobbyList) {
+                    return;
+                }
+
+                io.emit('lobby-list', this.pendingLobbyList)
+                this.pendingLobbyList = null;
+            }, 0);
         }
 
-        this.pendingLobbyList = null;
         this.lobbyListBroadcastTimer = setTimeout(() => {
             this.lobbyListBroadcastTimer = null;
-
-            const nextLobbyList = this.pendingLobbyList;
-            this.pendingLobbyList = null;
-            if (!nextLobbyList) {
+            if (!this.pendingLobbyList) {
+                /* no update needed */
                 return;
             }
 
-            io.emit('lobby-list', nextLobbyList);
+            io.emit('lobby-list', this.pendingLobbyList);
+            this.pendingLobbyList = null;
         }, SocketServerGateway.LOBBY_LIST_DEBOUNCE_MS);
     }
 
@@ -444,7 +454,9 @@ export class SocketServerGateway {
         socket.emit('session-joined', {
             sessionId: participation.session.id,
             session: participation.session,
-            participantId: participation.participantId
+
+            participantId: participation.participantId,
+            participantRole: participation.participantRole,
         });
 
         if (participation.gameState) {

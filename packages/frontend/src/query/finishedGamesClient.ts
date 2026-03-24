@@ -51,7 +51,7 @@ export function useQueryFinishedGames(
 
 export function useQueryFinishedGame(gameId: string | null, options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: gameId ? queryKeys.finishedGame(gameId) : ['finished-games', 'unknown'],
+    queryKey: queryKeys.finishedGame(gameId),
     queryFn: () => {
       if (!gameId) {
         throw new Error('Missing finished game id.')

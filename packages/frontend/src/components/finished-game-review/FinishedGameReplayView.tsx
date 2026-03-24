@@ -299,7 +299,7 @@ function FinishedGameReplayView({
   return (
     <FinishedGameReviewLayout onRetry={onRetry}>
       <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1.5fr)_24rem]">
-        <section className="min-h-[75dvh] flex min-w-0 flex-col overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950/75 shadow-[0_20px_80px_rgba(15,23,42,0.45)] sm:rounded-[2rem] xl:min-h-[34rem]">
+        <section className="min-h-[75dvh] flex min-w-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950/75 shadow-[0_20px_80px_rgba(15,23,42,0.45)] sm:rounded-4xl xl:min-h-136">
           <div className="relative h-full min-h-0 overflow-hidden bg-slate-950 sm:max-h-none xl:min-h-0 xl:flex-1 xl:h-auto">
             <GameBoardCanvas
               canvasRef={canvasRef}
@@ -347,16 +347,16 @@ function FinishedGameReplayView({
                 </div>
               </div>
 
-              <div className="pointer-events-auto rounded-[1rem] border border-white/10 bg-slate-950/78 p-2.5 backdrop-blur sm:rounded-[1.75rem] sm:p-4">
+              <div className="pointer-events-auto rounded-2xl border border-white/10 bg-slate-950/78 p-2.5 backdrop-blur sm:rounded-[1.75rem] sm:p-4">
                 <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0">
                     <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 sm:text-xs sm:tracking-[0.24em]">Current Step</div>
-                    <div className="mt-1 break-words text-sm font-bold text-white sm:text-2xl">
+                    <div className="mt-1 wrap-break-word text-sm font-bold text-white sm:text-2xl">
                       {activeMove
                         ? `${getPlayerLabel(game.players, activeMove.playerId)} at (${activeMove.x}, ${activeMove.y})`
                         : 'Board setup'}
                     </div>
-                    <div className="mt-1 break-words text-xs text-slate-300 sm:text-sm">
+                    <div className="mt-1 wrap-break-word text-xs text-slate-300 sm:text-sm">
                       {activeMove
                         ? `${formatDateTimeWithSeconds(activeMove.timestamp)} • +${formatMinutesSeconds(activeMove.timestamp - game.startedAt)}`
                         : `Started ${formatDateTimeWithSeconds(game.startedAt)}`}
@@ -364,21 +364,21 @@ function FinishedGameReplayView({
                   </div>
 
                   <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
-                  <button
-                    onClick={goToStart}
-                    aria-label="Go to start"
-                    className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
-                  >
+                    <button
+                      onClick={goToStart}
+                      aria-label="Go to start"
+                      className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
+                    >
                       <span className="sm:hidden">
                         <StartIcon />
                       </span>
                       <span className="hidden sm:inline">Start</span>
                     </button>
-                  <button
-                    onClick={goToPreviousMove}
-                    disabled={visibleMoveCount === 0}
-                    aria-label="Previous move"
-                    className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
+                    <button
+                      onClick={goToPreviousMove}
+                      disabled={visibleMoveCount === 0}
+                      aria-label="Previous move"
+                      className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
                     >
                       <span className="sm:hidden">
                         <PreviousIcon />
@@ -402,22 +402,22 @@ function FinishedGameReplayView({
                       </span>
                       <span className="hidden sm:inline">{isAutoPlaying ? 'Pause' : 'Play'}</span>
                     </button>
-                  <button
-                    onClick={goToNextMove}
-                    disabled={visibleMoveCount >= totalMoveCount}
-                    aria-label="Next move"
-                    className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
-                  >
+                    <button
+                      onClick={goToNextMove}
+                      disabled={visibleMoveCount >= totalMoveCount}
+                      aria-label="Next move"
+                      className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
+                    >
                       <span className="sm:hidden">
                         <NextIcon />
                       </span>
                       <span className="hidden sm:inline">Next</span>
                     </button>
-                  <button
-                    onClick={goToEnd}
-                    aria-label="Go to end"
-                    className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
-                  >
+                    <button
+                      onClick={goToEnd}
+                      aria-label="Go to end"
+                      className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white/14 sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.18em]"
+                    >
                       <span className="sm:hidden">
                         <EndIcon />
                       </span>
@@ -430,8 +430,8 @@ function FinishedGameReplayView({
           </div>
         </section>
 
-        <aside className="flex min-w-0 flex-col gap-4 xl:min-h-[34rem] xl:overflow-hidden">
-          <section className="flex min-h-0 min-w-0 flex-shrink-0 flex-col overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950/55 p-4 shadow-[0_20px_80px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-[2rem] sm:p-5">
+        <aside className="flex min-w-0 flex-col gap-4 xl:min-h-136 xl:overflow-hidden">
+          <section className="flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950/55 p-4 shadow-[0_20px_80px_rgba(15,23,42,0.45)] backdrop-blur sm:rounded-4xl sm:p-5">
             <div className="text-sm uppercase tracking-[0.3em] text-slate-300 ">Match Summary</div>
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-1">
               <div>
@@ -485,14 +485,14 @@ function FinishedGameReplayView({
                             ? (
                               <Link
                                 to={playerProfileHref}
-                                className="break-words transition hover:text-sky-100"
+                                className="wrap-break-word transition hover:text-sky-100"
                               >
                                 {getPlayerLabel(game.players, player.playerId)}
                               </Link>
-                              )
+                            )
                             : (
-                              <span className="break-words">{getPlayerLabel(game.players, player.playerId)}</span>
-                              )}
+                              <span className="wrap-break-word">{getPlayerLabel(game.players, player.playerId)}</span>
+                            )}
                           {gameResult?.winningPlayerId === player.playerId && (
                             <span className="rounded-full border border-amber-200/30 bg-amber-300 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-black">
                               Winner
@@ -520,7 +520,7 @@ function FinishedGameReplayView({
             </div>
           </section>
 
-          <section className="flex min-h-[18rem] min-w-0 flex-1 flex-col rounded-[1.5rem] border border-white/10 bg-slate-950/55 p-4 shadow-[0_20px_80px_rgba(15,23,42,0.45)] backdrop-blur sm:min-h-[22rem] sm:rounded-[2rem] sm:p-5 xl:min-h-[10em] xl:overflow-hidden">
+          <section className="flex min-h-72 min-w-0 flex-1 flex-col rounded-3xl border border-white/10 bg-slate-950/55 p-4 shadow-[0_20px_80px_rgba(15,23,42,0.45)] backdrop-blur sm:min-h-88 sm:rounded-4xl sm:p-5 xl:min-h-[10em] xl:overflow-hidden">
             <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <div className="text-sm uppercase tracking-[0.3em] text-slate-300">Move Timeline</div>
               <div className="text-sm text-slate-400">{game.moves.length} logged moves</div>
@@ -529,7 +529,7 @@ function FinishedGameReplayView({
             <div className="mt-4 min-h-0 flex-1 space-y-3 xl:overflow-y-auto xl:overscroll-contain xl:pr-1">
               <button
                 onClick={goToStart}
-                className={`w-full min-w-0 overflow-hidden rounded-[1.5rem] border p-4 text-left transition ${visibleMoveCount === 0
+                className={`w-full min-w-0 overflow-hidden rounded-3xl border p-4 text-left transition ${visibleMoveCount === 0
                   ? 'border-sky-300/30 bg-sky-400/12'
                   : 'border-white/10 bg-white/6 hover:bg-white/10'
                   }`}
@@ -549,7 +549,7 @@ function FinishedGameReplayView({
                       setIsAutoPlaying(false)
                       setVisibleMoveCount(index + 1)
                     }}
-                    className={`w-full min-w-0 overflow-hidden rounded-[1.5rem] border p-4 text-left transition ${isActive
+                    className={`w-full min-w-0 overflow-hidden rounded-3xl border p-4 text-left transition ${isActive
                       ? 'border-sky-300/30 bg-sky-400/12'
                       : 'border-white/10 bg-white/6 hover:bg-white/10'
                       }`}
@@ -561,10 +561,10 @@ function FinishedGameReplayView({
                         style={{ backgroundColor: getPlayerTileColor(game.playerTiles, move.playerId) }}
                       />
                     </div>
-                    <div className="mt-2 break-words text-base font-semibold text-white sm:text-lg">
+                    <div className="mt-2 wrap-break-word text-base font-semibold text-white sm:text-lg">
                       {getPlayerLabel(game.players, move.playerId)} placed at ({move.x}, {move.y})
                     </div>
-                    <div className="mt-1 break-words text-sm text-slate-300">
+                    <div className="mt-1 wrap-break-word text-sm text-slate-300">
                       {formatDateTimeWithSeconds(move.timestamp)} • +{formatMinutesSeconds(move.timestamp - game.startedAt)}
                     </div>
                   </button>

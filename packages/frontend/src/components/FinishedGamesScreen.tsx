@@ -117,7 +117,7 @@ function FinishedGamesScreen({
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden px-4 sm:px-6">
-        <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden p-0 sm:rounded-[2rem] sm:border sm:border-white/10 sm:bg-slate-950/55 sm:p-6 sm:shadow-[0_20px_80px_rgba(15,23,42,0.45)] sm:backdrop-blur">
+        <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden p-0 sm:rounded-4xl sm:border sm:border-white/10 sm:bg-slate-950/55 sm:p-6 sm:shadow-[0_20px_80px_rgba(15,23,42,0.45)] sm:backdrop-blur">
           {isLoading ? (
             <div className="flex flex-1 items-center justify-center rounded-3xl border border-dashed border-white/15 bg-white/5 px-6 py-12 text-center text-slate-300">
               Loading finished games...
@@ -158,7 +158,7 @@ function FinishedGamesScreen({
                     <button
                       key={game.id}
                       onClick={() => onOpenGame(game.id)}
-                      className={`w-full rounded-[1.2rem] border px-4 py-3.5 text-left transition hover:-translate-y-0.5 sm:rounded-[1.5rem] sm:px-4.5 sm:py-4 ${presentation.cardClassName}`}
+                      className={`w-full rounded-[1.2rem] border px-4 py-3.5 text-left transition hover:-translate-y-0.5 sm:rounded-3xl sm:px-4.5 sm:py-4 ${presentation.cardClassName}`}
                     >
                       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <div className="min-w-0">

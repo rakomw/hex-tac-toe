@@ -2,78 +2,57 @@ import { useEffect, useRef } from 'react'
 import { startLiveGameClient, stopLiveGameClient } from '../liveGameClient'
 import { useLiveGameStore } from '../liveGameStore'
 import {
-  playChatMessageSound,
-  playGameLossSound,
-  playGameWinSound,
-  playMatchStartSound
+    playChatMessageSound,
+    playGameLossSound,
+    playGameWinSound,
+    playMatchStartSound
 } from '../soundEffects'
 
 function LiveGameRuntime() {
-  const liveScreen = useLiveGameStore(state => state.screen)
-  const currentPlayerId = useLiveGameStore(state => state.connection.currentPlayerId)
-  const previousSessionStateRef = useRef(
-    liveScreen.kind === 'session' ? liveScreen.session.state : 'none'
-  )
-  const previousSessionIdRef = useRef(
-    liveScreen.kind === 'session' ? liveScreen.sessionId : null
-  )
-  const previousLastChatMessageIdRef = useRef(
-    liveScreen.kind === 'session'
-      ? (liveScreen.session.chat.messages[liveScreen.session.chat.messages.length - 1]?.id ?? null)
-      : null
-  )
+    const activeSession = useLiveGameStore(state => state.session);
 
-  useEffect(() => {
-    startLiveGameClient()
+    const lastChatMessage = activeSession?.chat?.messages?.at(-1);
 
-    return () => {
-      stopLiveGameClient()
-    }
-  }, [])
+    const previousSessionStateRef = useRef(activeSession?.state.status)
+    const previousChatMessageIdRef = useRef(lastChatMessage?.id)
 
-  useEffect(() => {
-    const previousState = previousSessionStateRef.current
-    const nextState = liveScreen.kind === 'session' ? liveScreen.session.state : 'none'
-    const isPlayer = liveScreen.kind === 'session'
-      && liveScreen.session.players.some(player => player.id === currentPlayerId)
+    useEffect(() => {
+        startLiveGameClient()
 
-    if (previousState === 'lobby' && nextState === 'in-game' && isPlayer) {
-      playMatchStartSound()
-    }
+        return () => {
+            stopLiveGameClient()
+        }
+    }, [])
 
-    if (previousState === 'in-game' && nextState === 'finished' && liveScreen.kind === 'session' && liveScreen.session.state === "finished" && isPlayer) {
-      if (liveScreen.session.winningPlayerId === currentPlayerId) {
-        playGameWinSound()
-      } else {
-        playGameLossSound()
-      }
-    }
+    useEffect(() => {
+        const previousState = previousSessionStateRef.current ?? 'none'
+        if (activeSession?.state.status === 'in-game' && (previousState === 'lobby' || previousState === 'finished')) {
+            playMatchStartSound()
+        }
 
-    previousSessionStateRef.current = nextState
-  }, [currentPlayerId, liveScreen])
+        if (previousState === 'in-game' && activeSession?.state.status === 'finished' && activeSession.localParticipantRole === "player") {
+            if (activeSession.state.winningPlayerId === activeSession.localParticipantId) {
+                playGameWinSound()
+            } else {
+                playGameLossSound()
+            }
+        }
 
-  useEffect(() => {
-    const nextSessionId = liveScreen.kind === 'session' ? liveScreen.sessionId : null
-    const nextLastChatMessage = liveScreen.kind === 'session'
-      ? (liveScreen.session.chat.messages[liveScreen.session.chat.messages.length - 1] ?? null)
-      : null
-    const previousSessionId = previousSessionIdRef.current
-    const previousLastChatMessageId = previousLastChatMessageIdRef.current
+        previousSessionStateRef.current = activeSession?.state.status
+    }, [activeSession?.localParticipantId, activeSession?.state?.status])
 
-    if (
-      previousSessionId === nextSessionId
-      && nextLastChatMessage
-      && nextLastChatMessage.id !== previousLastChatMessageId
-      && nextLastChatMessage.senderId !== currentPlayerId
-    ) {
-      playChatMessageSound()
-    }
+    useEffect(() => {
+        if (
+            previousChatMessageIdRef.current !== lastChatMessage?.id &&
+            activeSession?.localParticipantId !== lastChatMessage?.senderId
+        ) {
+            playChatMessageSound()
+        }
 
-    previousSessionIdRef.current = nextSessionId
-    previousLastChatMessageIdRef.current = nextLastChatMessage?.id ?? null
-  }, [currentPlayerId, liveScreen])
+        previousChatMessageIdRef.current = lastChatMessage?.id
+    }, [activeSession?.localParticipantId, lastChatMessage])
 
-  return null
+    return null
 }
 
 export default LiveGameRuntime

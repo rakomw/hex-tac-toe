@@ -17,6 +17,7 @@
     "dependencies": {
         "@ih3t/shared": "workspace:*",
         "@tanstack/react-query": "^5.91.2",
+        "@tanstack/react-query-devtools": "^5.95.2",
         "clsx": "^2.1.1",
         "immer": "^10.2.0",
         "react": "^19.2.4",
@@ -29,10 +30,10 @@
         "zustand": "^5.0.8"
     },
     "devDependencies": {
-        "@tailwindcss/vite": "^4.2.2",
         "@eslint/js": "^9.39.4",
         "@playwright/experimental-ct-react": "^1.58.2",
         "@rolldown/plugin-babel": "^0.2.2",
+        "@tailwindcss/vite": "^4.2.2",
         "@types/node": "^25.5.0",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",

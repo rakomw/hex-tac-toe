@@ -113,18 +113,18 @@ function GameScreen({
               localPlayerId={isSpectator ? null : currentPlayerId}
             />
           )}
-
-          {shutdown && (
-            <div className="rounded-full border border-amber-200/30 bg-slate-950/92 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100 shadow-lg">
-              Restarting <ShutdownTimer shutdown={shutdown} />
-            </div>
-          )}
         </div>
       </div>
 
       {overlay && (
         <div className="absolute inset-0">
           {overlay}
+        </div>
+      )}
+
+      {shutdown && (
+        <div className="absolute bottom-3 left-3 rounded-full border border-amber-300/40 bg-amber-200/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100 shadow-lg">
+          Server Restart in <ShutdownTimer shutdown={shutdown} />
         </div>
       )}
 

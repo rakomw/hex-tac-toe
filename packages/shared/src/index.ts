@@ -24,9 +24,6 @@ export const zHexCoordinate = z.object({
 export const zUserRole = z.enum(['user', 'admin']);
 export type UserRole = z.infer<typeof zUserRole>;
 
-export const zSessionState = z.enum(['lobby', 'in-game', 'finished']);
-export type SessionState = z.infer<typeof zSessionState>;
-
 export const zSessionParticipantRole = z.enum(['player', 'spectator']);
 export type SessionParticipantRole = z.infer<typeof zSessionParticipantRole>;
 
@@ -525,7 +522,29 @@ const zSessionChat = z.object({
 });
 export type SessionChat = z.infer<typeof zSessionChat>;
 
-const zSessionInfoBase = z.object({
+export const zSessionState = z.discriminatedUnion('status', [
+    z.object({
+        status: z.literal('lobby')
+    }),
+    z.object({
+        status: z.literal('in-game'),
+
+        startedAt: zTimestamp,
+        gameId: zIdentifier
+    }),
+    z.object({
+        status: z.literal('finished'),
+
+        gameId: zIdentifier,
+        finishReason: zSessionFinishReason,
+        winningPlayerId: zIdentifier.nullable(),
+        rematchAcceptedPlayerIds: z.array(zIdentifier)
+    })
+]);
+export type SessionState = z.infer<typeof zSessionState>;
+export type SessionStateFinished = Extract<SessionState, { status: 'finished' }>
+
+export const zSessionInfo = z.object({
     id: zIdentifier,
     gameOptions: zLobbyOptions,
 
@@ -533,25 +552,8 @@ const zSessionInfoBase = z.object({
     spectators: z.array(zSessionParticipant),
 
     chat: zSessionChat,
+    state: zSessionState,
 });
-
-export const zSessionInfo = z.discriminatedUnion('state', [
-    zSessionInfoBase.extend({
-        state: z.literal('lobby')
-    }),
-    zSessionInfoBase.extend({
-        state: z.literal('in-game'),
-        startedAt: zTimestamp,
-        gameId: zIdentifier
-    }),
-    zSessionInfoBase.extend({
-        state: z.literal('finished'),
-        gameId: zIdentifier,
-        finishReason: zSessionFinishReason,
-        winningPlayerId: zIdentifier.nullable(),
-        rematchAcceptedPlayerIds: z.array(zIdentifier)
-    })
-]);
 export type SessionInfo = z.infer<typeof zSessionInfo>;
 
 export const zAdminTerminateSessionResponse = z.object({
@@ -637,7 +639,9 @@ export type FinishedGamesPage = z.infer<typeof zFinishedGamesPage>;
 export const zSessionJoinedEvent = z.object({
     sessionId: zIdentifier,
     session: zSessionInfo,
-    participantId: zIdentifier
+
+    participantId: zIdentifier,
+    participantRole: zSessionParticipantRole,
 });
 export type SessionJoinedEvent = z.infer<typeof zSessionJoinedEvent>;
 
