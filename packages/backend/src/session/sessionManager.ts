@@ -460,7 +460,7 @@ export class SessionManager {
 
         const participantMapping: Record<string, string> = {};
         const rematchSession = createGameSession(sessionId, originalSession.gameOptions);
-        rematchSession.chatMessages = originalSession.chatMessages;
+
         rematchSession.players = originalSession.players.map(player => {
             const newParticipantId = this.createParticipantId(rematchSession);
             participantMapping[player.id] = newParticipantId;
@@ -499,6 +499,11 @@ export class SessionManager {
                 profileId: player.profileId,
             }
         });
+
+        rematchSession.chatMessages = originalSession.chatMessages.map(message => ({
+            ...message,
+            participantId: participantMapping[message.participantId]
+        }));
 
         const socketMapping: Record<string, string> = {};
         for (const { participant } of this.getAllParticipations(originalSession)) {
