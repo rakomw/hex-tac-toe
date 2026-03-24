@@ -232,7 +232,7 @@ export class ApiRouter {
                 page: query.page ?? 1,
                 pageSize: query.pageSize ?? 20,
                 baseTimestamp: query.baseTimestamp ?? Date.now(),
-                playerProfileId: currentUser?.id
+                playerProfileId: view === "all" ? undefined : currentUser?.id
             });
             res.json(archivePage);
         });
