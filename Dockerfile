@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:experimental
 FROM node:22-alpine AS build
 
 ARG GITHUB_SHA
@@ -11,7 +12,15 @@ RUN corepack enable
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsconfig.node.json eslint.config.js ./
-COPY --parents packages/*/package.json .
+
+# COPY --parents packages/*/package.json .
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/backend/package.json packages/backend/package.json
+COPY packages/frontend/package.json packages/frontend/package.json
+COPY packages/bot-worker/package.json packages/bot-worker/package.json
+COPY packages/bot-engine-dummy/package.json packages/bot-engine-dummy/package.json
+COPY packages/bot-engine-seal/package.json packages/bot-engine-seal/package.json
+
 
 RUN pnpm install --frozen-lockfile
 
