@@ -355,7 +355,7 @@ export class AuthRepository implements Adapter {
             { _id: objectId },
             {
                 $set: {
-                    name: username,
+                    displayName: username,
                 },
             }
         );
