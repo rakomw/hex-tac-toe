@@ -24,7 +24,7 @@ import SandboxShareModal from '../components/sandbox/SandboxShareModal'
 import SandboxTurnIndicator from '../components/sandbox/SandboxTurnIndicator'
 import SandboxWelcomeModal from '../components/sandbox/SandboxWelcomeModal'
 import SandboxWinnerBanner from '../components/sandbox/SandboxWinnerBanner'
-import { useQueryAccount } from '../query/accountClient'
+import { useQueryAccount, useQueryAccountPreferences } from '../query/accountClient'
 import { queryKeys } from '../query/queryDefinitions'
 import { createSandboxPosition, fetchSandboxPosition, useQuerySandboxPosition } from '../query/sandboxClient'
 import {
@@ -164,8 +164,10 @@ function SandboxRoute() {
     const location = useLocation()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const { data: account } = useQueryAccount({ enabled: true })
+    const { data: accountPreferences } = useQueryAccountPreferences({ enabled: account !== null })
+
     const { positionId: routePositionId } = useParams<{ positionId?: string }>()
-    const accountQuery = useQueryAccount({ enabled: true })
     const [gameState, setGameState] = useState(() => createSandboxGameState())
     const [gameHistory, setGameHistory] = useState<GameState[]>([])
     const [loadedSnapshot, setLoadedSnapshot] = useState<SandboxSnapshot | null>(null)
@@ -198,7 +200,7 @@ function SandboxRoute() {
     const initialBoardStateKey = getSandboxPositionKey(initialBoardState)
     const currentBoardStateKey = getSandboxPositionKey(gameState)
     const currentPositionName = loadedSnapshot?.positionName ?? null
-    const isAuthenticated = Boolean(accountQuery.data?.user)
+    const isAuthenticated = Boolean(account !== null)
     const currentTurnPlayerSlot = gameState.currentTurnPlayerId
         ? getSandboxPlayerSlot(gameState.currentTurnPlayerId)
         : null
@@ -268,7 +270,8 @@ function SandboxRoute() {
         highlightedCells: gameState.winner?.cells ?? "last",
         localPlayerId,
         interactionEnabled: isSandboxInteractionEnabled,
-        onPlaceCell: gameState.winner === null ? handlePlaceCell : undefined
+        onPlaceCell: gameState.winner === null ? handlePlaceCell : undefined,
+        showTilePieceMarkers: accountPreferences?.preferences.tilePieceMarkers ?? false
     })
 
     function applyBotMoves(moves: readonly HexCoordinate[]) {
