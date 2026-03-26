@@ -4,7 +4,6 @@ export type FinishedGamesArchiveView = 'all' | 'mine';
 export const queryKeys = {
     account: ['account'] as const,
     accountPreferences: ['account', 'preferences'] as const,
-    accountStatistics: ['account', 'statistics'] as const,
 
     profile: (profileId: string | null) => ['profile', profileId ?? "unknown"] as const,
     profileRecentGames: (profileId: string | null) => ['profile', profileId ?? "unknown", 'games'] as const,

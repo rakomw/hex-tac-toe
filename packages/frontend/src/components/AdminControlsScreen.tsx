@@ -54,6 +54,7 @@ function ShutdownSummary({ shutdown }: { shutdown: ShutdownState | null }) {
       return
     }
 
+    setNow(Date.now())
     const interval = window.setInterval(() => {
       setNow(Date.now())
     }, 1_000)
@@ -117,6 +118,7 @@ function AdminControlsScreen({
       return
     }
 
+    setNow(Date.now())
     const interval = window.setInterval(() => {
       setNow(Date.now())
     }, 1000)

@@ -130,7 +130,7 @@ export class FrontendSsrRenderer {
     ): Promise<void> {
         const path = requestUrl.pathname
 
-        if (path === '/' || path === '/admin') {
+        if (path === '/' || path === '/admin' || path === '/account/profile' || path.startsWith("/profile/")) {
             queryClient.setQueryData(queryKeys.availableSessions, sortLobbySessions(this.dependencies.sessionManager.listLobbyInfo()))
         }
 
@@ -139,9 +139,9 @@ export class FrontendSsrRenderer {
             queryClient.setQueryData(queryKeys.leaderboard, leaderboard)
         }
 
-        const publicProfileMatch = path.match(/^\/profile\/([^/]+)$/)
-        if (publicProfileMatch) {
-            const profileId = decodeURIComponent(publicProfileMatch[1])
+        const profileMatch = path.match(/^\/profile\/(?<id>[^/]+)|\/account\/profile$/)
+        if (profileMatch) {
+            const profileId = decodeURIComponent(profileMatch.groups?.["id"] ?? currentUserId ?? "")
             const profile = await this.dependencies.authRepository.getUserProfileById(profileId)
             if (profile) {
                 const { email: _email, ...publicProfile } = profile
@@ -167,7 +167,7 @@ export class FrontendSsrRenderer {
                     { statistics: accountStatistics } satisfies ProfileStatisticsResponse
                 )
                 queryClient.setQueryData(
-                    queryKeys.profileStatistics(profileId),
+                    queryKeys.profileRecentGames(profileId),
                     recentGames satisfies ProfileGamesResponse
                 )
             }

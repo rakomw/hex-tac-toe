@@ -103,60 +103,6 @@ export class ApiRouter {
             res.json(response);
         });
 
-        router.get('/account/statistics', async (req, res) => {
-            const user = await this.authService.getUserFromRequest(req);
-            if (!user) {
-                res.status(401).json({ error: 'Sign in with Discord to view your statistics.' });
-                return;
-            }
-
-            const response: ProfileStatisticsResponse = {
-                statistics: await this.buildAccountStatistics(user.id)
-            };
-            res.json(response);
-        });
-
-        router.get('/profiles/:profileId', async (req, res) => {
-            const user = await this.authRepository.getUserProfileById(req.params.profileId);
-            if (!user) {
-                res.status(404).json({ error: 'Profile not found.' });
-                return;
-            }
-
-            const response: ProfileResponse = {
-                user: this.toPublicAccountProfile(user)
-            };
-            res.json(response);
-        });
-
-        router.get('/profiles/:profileId/statistics', async (req, res) => {
-            const user = await this.authRepository.getUserProfileById(req.params.profileId);
-            if (!user) {
-                res.status(404).json({ error: 'Profile not found.' });
-                return;
-            }
-
-            const response: ProfileStatisticsResponse = {
-                statistics: await this.buildAccountStatistics(user.id)
-            };
-            res.json(response);
-        });
-
-        router.get('/profiles/:profileId/games', async (req, res) => {
-            const user = await this.authRepository.getUserProfileById(req.params.profileId);
-            if (!user) {
-                res.status(404).json({ error: 'Profile not found.' });
-                return;
-            }
-
-            const archivePage = await this.gameHistoryRepository.listFinishedGames({
-                page: 1,
-                pageSize: 10,
-                playerProfileId: user.id
-            });
-            res.json(archivePage satisfies ProfileGamesResponse);
-        });
-
         router.get('/account/preferences', async (req, res) => {
             const user = await this.authService.getUserFromRequest(req);
             if (!user) {
@@ -221,6 +167,47 @@ export class ApiRouter {
                 preferences: updatedPreferences
             };
             res.json(response);
+        });
+
+        router.get('/profiles/:profileId', async (req, res) => {
+            const user = await this.authRepository.getUserProfileById(req.params.profileId);
+            if (!user) {
+                res.status(404).json({ error: 'Profile not found.' });
+                return;
+            }
+
+            const response: ProfileResponse = {
+                user: this.toPublicAccountProfile(user)
+            };
+            res.json(response);
+        });
+
+        router.get('/profiles/:profileId/statistics', async (req, res) => {
+            const user = await this.authRepository.getUserProfileById(req.params.profileId);
+            if (!user) {
+                res.status(404).json({ error: 'Profile not found.' });
+                return;
+            }
+
+            const response: ProfileStatisticsResponse = {
+                statistics: await this.buildAccountStatistics(user.id)
+            };
+            res.json(response);
+        });
+
+        router.get('/profiles/:profileId/games', async (req, res) => {
+            const user = await this.authRepository.getUserProfileById(req.params.profileId);
+            if (!user) {
+                res.status(404).json({ error: 'Profile not found.' });
+                return;
+            }
+
+            const archivePage = await this.gameHistoryRepository.listFinishedGames({
+                page: 1,
+                pageSize: 10,
+                playerProfileId: user.id
+            });
+            res.json(archivePage satisfies ProfileGamesResponse);
         });
 
         router.get('/sessions', (_req, res) => {

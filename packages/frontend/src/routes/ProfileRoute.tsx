@@ -1,65 +1,42 @@
-import { useState } from 'react'
 import { useParams } from 'react-router'
 import ProfileScreen from '../components/ProfileScreen'
 import {
   useQueryAccount,
-  useQueryAccountStatistics,
-  useQueryPublicAccount,
-  useQueryPublicAccountStatistics
+  useQueryProfile,
+  useQueryProfileStatistics
 } from '../query/accountClient'
-import { useQueryPublicProfileGames } from '../query/finishedGamesClient'
+import { useQueryPublicProfileGames as useQueryProfileGames } from '../query/finishedGamesClient'
 import { useQueryAvailableSessions } from '../query/sessionClient'
-import { getInitialRenderTimestamp } from '../ssrState'
 
 function ProfileRoute() {
   const { profileId } = useParams<{ profileId: string }>()
   const isPublicProfileRoute = Boolean(profileId)
-  const [recentGamesBaseTimestamp] = useState(() => getInitialRenderTimestamp())
 
   const accountQuery = useQueryAccount({ enabled: true })
-  const accountStatisticsQuery = useQueryAccountStatistics({
-    enabled: !isPublicProfileRoute && !accountQuery.isLoading && Boolean(accountQuery.data?.user)
-  })
-  const publicAccountQuery = useQueryPublicAccount(profileId ?? null, {
-    enabled: isPublicProfileRoute
-  })
-  const publicAccountStatisticsQuery = useQueryPublicAccountStatistics(profileId ?? null, {
-    enabled: isPublicProfileRoute && !publicAccountQuery.isLoading && Boolean(publicAccountQuery.data?.user)
-  })
+  const targetProfileId = profileId ?? accountQuery.data?.user?.id ?? null;
 
-  const account = isPublicProfileRoute
-    ? publicAccountQuery.data?.user ?? null
-    : accountQuery.data?.user ?? null
-  const recentGamesQuery = useQueryPublicProfileGames(account?.id ?? null, recentGamesBaseTimestamp, {
-    enabled: Boolean(account?.id)
-  })
-  const availableSessionsQuery = useQueryAvailableSessions({
-    enabled: Boolean(account?.id)
-  })
-  const statistics = isPublicProfileRoute
-    ? publicAccountStatisticsQuery.data?.statistics ?? null
-    : accountStatisticsQuery.data?.statistics ?? null
-  const liveGame = (availableSessionsQuery.data ?? []).find((session) =>
-    session.startedAt !== null && session.players.some((player) => player.profileId === account?.id)
+  const profileQuery = useQueryProfile(targetProfileId)
+  const profileStatisticsQuery = useQueryProfileStatistics(targetProfileId)
+  const recentGamesQuery = useQueryProfileGames(targetProfileId)
+
+  const availableSessionsQuery = useQueryAvailableSessions()
+
+  const liveGame = availableSessionsQuery.data?.find((session) =>
+    session.startedAt !== null && session.players.some((player) => player.profileId === targetProfileId)
   ) ?? null
-  const isLoading = isPublicProfileRoute ? publicAccountQuery.isLoading : accountQuery.isLoading
-  const isStatisticsLoading = Boolean(account) && (
-    isPublicProfileRoute
-      ? publicAccountStatisticsQuery.isLoading || publicAccountStatisticsQuery.isRefetching
-      : accountStatisticsQuery.isLoading || accountStatisticsQuery.isRefetching
-  )
-  const error = isPublicProfileRoute ? publicAccountQuery.error : accountQuery.error
-  const statisticsError = isPublicProfileRoute ? publicAccountStatisticsQuery.error : accountStatisticsQuery.error
+
+  const error = profileQuery.error
+  const statisticsError = profileStatisticsQuery.error
 
   return (
     <ProfileScreen
-      account={account}
-      statistics={statistics}
+      account={profileQuery.data?.user ?? null}
+      statistics={profileStatisticsQuery.data?.statistics ?? null}
       recentGames={recentGamesQuery.data ?? null}
       liveGame={liveGame}
-      isLoading={isLoading}
-      isStatisticsLoading={isStatisticsLoading}
-      isRecentGamesLoading={Boolean(account) && (recentGamesQuery.isLoading || recentGamesQuery.isRefetching)}
+      isLoading={profileQuery.isLoading}
+      isStatisticsLoading={profileStatisticsQuery.isLoading}
+      isRecentGamesLoading={recentGamesQuery.isLoading || recentGamesQuery.isRefetching}
       errorMessage={error instanceof Error ? error.message : null}
       statisticsErrorMessage={statisticsError instanceof Error ? statisticsError.message : null}
       recentGamesErrorMessage={recentGamesQuery.error instanceof Error ? recentGamesQuery.error.message : null}

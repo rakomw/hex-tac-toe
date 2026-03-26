@@ -14,15 +14,16 @@ import LobbyRoute from './routes/LobbyRoute'
 import ProfileRoute from './routes/ProfileRoute'
 import SandboxRoute from './routes/SandboxRoute'
 import SessionRoute from './routes/SessionRoute'
+import { useIsSsrRender } from './ssrState'
 
 function AppShell() {
-  const isBrowser = typeof window !== 'undefined'
+  const isSsrRender = useIsSsrRender()
 
   return (
     <>
-      {isBrowser ? <LiveGameRuntime /> : null}
+      {!isSsrRender ? <LiveGameRuntime /> : null}
       <Outlet />
-      {isBrowser ? (
+      {!isSsrRender ? (
         <ToastContainer
           position="top-right"
           autoClose={4000}

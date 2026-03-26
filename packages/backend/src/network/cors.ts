@@ -18,6 +18,7 @@ export class CorsConfiguration {
         const allowedOrigins = new Set(configuredOrigins);
 
         if (process.env.NODE_ENV !== 'production') {
+            allowedOrigins.add('http://localhost:3001');
             allowedOrigins.add('http://localhost:5173');
             allowedOrigins.add('http://127.0.0.1:5173');
         }

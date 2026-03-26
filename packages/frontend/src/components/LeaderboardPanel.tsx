@@ -204,6 +204,7 @@ export function LeaderboardRefreshIndicator({
   const [now, setNow] = useState(() => getInitialRenderTimestamp())
 
   useEffect(() => {
+    setNow(Date.now())
     const interval = window.setInterval(() => {
       setNow(Date.now())
     }, 1_000)

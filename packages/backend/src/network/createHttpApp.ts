@@ -284,7 +284,7 @@ export class HttpApplication {
             });
         });
 
-        if (process.env.NODE_ENV === 'production' && existsSync(this.frontendDistPath)) {
+        if (existsSync(this.frontendDistPath)) {
             app.use(express.static(this.frontendDistPath, { index: false }));
             app.get(/^(?!\/api(?:\/|$)|\/socket\.io(?:\/|$)).*/, async (req, res) => {
                 const archiveRedirectUrl = this.resolveArchiveRedirectUrl(req);

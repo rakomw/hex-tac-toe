@@ -1,5 +1,5 @@
 import type { AccountEloHistory, AccountStatistics, FinishedGameSummary, FinishedGamesPage, LobbyInfo, PublicAccountProfile } from '@ih3t/shared'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useMemo } from 'react'
 import {
     CartesianGrid,
     Line,
@@ -13,7 +13,7 @@ import { Link } from 'react-router'
 import { toast } from 'react-toastify'
 import { signInWithDiscord } from '../query/authClient'
 import { buildFinishedGamePath, buildSessionPath } from '../routes/archiveRouteState'
-import { getInitialRenderTimestamp } from '../ssrState'
+import { useSsrCompatibleNow } from '../ssrState'
 import {
     formatCalendarDate,
     formatChartDate,
@@ -347,25 +347,26 @@ type EloChartPoint = {
 function EloHistoryChartSection({
     eloHistory,
     currentElo,
-    referenceTimestamp
 }: Readonly<{
     eloHistory: AccountEloHistory
     currentElo: number
-    referenceTimestamp: number
 }>) {
+    const ssrNow = useSsrCompatibleNow();
+    const now = useMemo(() => ssrNow, [eloHistory]);
+
     /* align the own start with the bucket size */
-    let windowStart = referenceTimestamp - thirtyDaysMs
+    let windowStart = now - thirtyDaysMs
     windowStart -= windowStart % eloHistory.bucketSizeMs;
 
     const sortedPoints = [...eloHistory.points]
-        .filter((point) => point.timestamp < referenceTimestamp)
+        .filter((point) => point.timestamp < now)
         .sort((left, right) => left.timestamp - right.timestamp)
 
     const currentPoint = {
         elo: currentElo,
 
         /* The current ELO is the same since the last bucket end as buckets are only provided if there happened any games. */
-        timestamp: Math.min((sortedPoints.at(-1)?.timestamp ?? referenceTimestamp) + eloHistory.bucketSizeMs, referenceTimestamp)
+        timestamp: Math.min((sortedPoints.at(-1)?.timestamp ?? now) + eloHistory.bucketSizeMs, now)
     };
 
     sortedPoints.push(currentPoint);
@@ -376,7 +377,7 @@ function EloHistoryChartSection({
     let currentEloScore = 1000;
     let currentHistoryIndex = 0;
 
-    while (currentTimestamp <= referenceTimestamp) {
+    while (currentTimestamp <= now) {
         while (currentHistoryIndex < sortedPoints.length) {
             if (sortedPoints[currentHistoryIndex].timestamp > currentTimestamp) {
                 break
@@ -490,7 +491,7 @@ function ProfileScreen({
     recentGamesErrorMessage,
     isPublicView
 }: Readonly<ProfileScreenProps>) {
-    const [referenceTimestamp] = useState(() => getInitialRenderTimestamp())
+    const now = useSsrCompatibleNow();
 
     const handleSignIn = async () => {
         try {
@@ -503,7 +504,7 @@ function ProfileScreen({
 
     const isMissingPublicProfile = isPublicView && errorMessage === 'Profile not found.'
     const memberSinceLabel = account ? formatCalendarDate(account.registeredAt) : null
-    const lastSeenLabel = account ? formatRelativeTimeFrom(account.lastActiveAt, referenceTimestamp) : null
+    const lastSeenLabel = account ? formatRelativeTimeFrom(account.lastActiveAt, now) : null
 
     return (
         <PageCorpus
@@ -639,7 +640,6 @@ function ProfileScreen({
                                         <EloHistoryChartSection
                                             eloHistory={statistics.eloHistory}
                                             currentElo={statistics.elo}
-                                            referenceTimestamp={referenceTimestamp}
                                         />
                                         <div className={"mt-6 grid grid-cols-1 gap-6 md:grid-cols-3"}>
                                             <SecondaryStatCard
