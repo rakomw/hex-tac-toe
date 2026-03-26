@@ -172,6 +172,7 @@ function SessionRoute() {
 
     const autoPlaceOriginTile = accountPreferences?.preferences.autoPlaceOriginTile ?? false
     const showTilePieceMarkers = accountPreferences?.preferences.tilePieceMarkers ?? false
+    const hideEloInHud = accountPreferences?.preferences.zenModeInGame ?? false
     const shouldBlockLeave = session && session.state.status === "in-game" && session.localParticipantRole === "player";
 
     const blocker = useBlocker(({ currentLocation, nextLocation }) => currentLocation.pathname !== nextLocation.pathname)
@@ -419,6 +420,7 @@ function SessionRoute() {
 
                 interactionEnabled={session.state.status === "in-game"}
                 showTilePieceMarkers={showTilePieceMarkers}
+                hideEloInHud={hideEloInHud}
 
                 onPlaceCell={placeCell}
                 onSendChatMessage={session.localParticipantRole === "player" ? sendSessionChatMessage : undefined}

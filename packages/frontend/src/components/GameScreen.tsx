@@ -25,6 +25,7 @@ interface GameScreenProps {
     overlay?: ReactNode
     interactionEnabled?: boolean
     showTilePieceMarkers?: boolean
+    hideEloInHud?: boolean
 
     chat: SessionChat
     isChatOpen: boolean
@@ -47,6 +48,7 @@ function GameScreen({
     overlay,
     interactionEnabled = true,
     showTilePieceMarkers = false,
+    hideEloInHud = false,
 
     chat,
     isChatOpen,
@@ -146,6 +148,7 @@ function GameScreen({
                     <GameScreenHud
                         sessionId={sessionId}
                         gameOptions={gameOptions}
+                        hideEloInHud={hideEloInHud}
 
                         players={hudPlayerInfo}
                         localPlayerId={currentPlayerId}

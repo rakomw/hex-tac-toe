@@ -23,6 +23,7 @@ interface GameScreenHudProps {
     sessionId: string
     localPlayerId: string | null
     players: HudPlayerInfo[]
+    hideEloInHud?: boolean
 
     rankingAdjustment: PlayerRatingAdjustment | null,
 
@@ -65,6 +66,7 @@ function GameScreenHud({
 
     players,
     localPlayerId,
+    hideEloInHud = false,
 
     rankingAdjustment,
 
@@ -112,16 +114,23 @@ function GameScreenHud({
 
                 <HudInfoBlock label="Ranking">
                     {gameOptions.rated ? (
-                        <React.Fragment>
-                            <div className="text-white">
-                                <span className={"inline-block w-[2em]"}>Win</span>
-                                <span className={"inline-block w-[2em] text-right"}>+{rankingAdjustment?.eloGain ?? 0}</span>
-                            </div>
-                            <div className="text-slate-300">
-                                <span className={"inline-block w-[2em]"}>Loss</span>
-                                <span className={"inline-block w-[2em] text-right"}>{rankingAdjustment?.eloLoss ?? 0}</span>
-                            </div>
-                        </React.Fragment>
+                        hideEloInHud ? (
+                            <React.Fragment>
+                                <div className="text-white">Rated Match</div>
+                                <div className="text-slate-300">Zen mode hides Elo in the HUD.</div>
+                            </React.Fragment>
+                        ) : (
+                            <React.Fragment>
+                                <div className="text-white">
+                                    <span className={"inline-block w-[2em]"}>Win</span>
+                                    <span className={"inline-block w-[2em] text-right"}>+{rankingAdjustment?.eloGain ?? 0}</span>
+                                </div>
+                                <div className="text-slate-300">
+                                    <span className={"inline-block w-[2em]"}>Loss</span>
+                                    <span className={"inline-block w-[2em] text-right"}>{rankingAdjustment?.eloLoss ?? 0}</span>
+                                </div>
+                            </React.Fragment>
+                        )
                     ) : (
                         <div className="text-white">Not Rated</div>
                     )}
@@ -130,7 +139,7 @@ function GameScreenHud({
                 <HudInfoBlock label="Players">
                     {players.map(({ playerId, profileId, displayColor, displayName, isConnected, rankingEloScore }) => {
                         let formattedName;
-                        if (gameOptions.rated) {
+                        if (gameOptions.rated && !hideEloInHud) {
                             formattedName = `${displayName} (${rankingEloScore})`
                         } else {
                             formattedName = displayName;

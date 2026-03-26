@@ -190,6 +190,14 @@ function AccountPreferencesScreen({
                     onToggle={(nextChecked) => void handlePreferenceToggle('tilePieceMarkers', nextChecked)}
                   />
                   <PreferenceSwitchCard
+                    label="Zen Mode In-Game"
+                    description="Hide Elo numbers from the live match HUD so you can focus on the board while playing."
+                    checked={preferences.zenModeInGame}
+                    disabled={isSavingPreference}
+                    isSaving={savingPreferenceKey === 'zenModeInGame'}
+                    onToggle={(nextChecked) => void handlePreferenceToggle('zenModeInGame', nextChecked)}
+                  />
+                  <PreferenceSwitchCard
                     label="Auto-Place Opening Tile"
                     description='Automatically place the opening tile at "0,0" when a new match starts and it is your turn.'
                     checked={preferences.autoPlaceOriginTile}
