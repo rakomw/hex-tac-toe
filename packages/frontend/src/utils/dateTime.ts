@@ -28,6 +28,12 @@ export function formatDateTimeWithSeconds(value: DateTimeValue) {
   }).format(toDate(value))
 }
 
+export function formatChartDate(value: DateTimeValue) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+  }).format(toDate(value))
+}
+
 export function formatChartDateTime(value: number) {
   return new Intl.DateTimeFormat(undefined, {
     month: 'short',
