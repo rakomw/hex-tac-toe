@@ -80,6 +80,7 @@ function GameScreenHud({
     onLeave,
     onResetView
 }: Readonly<GameScreenHudProps>) {
+    const isSpectator = !players.some(player => player.playerId === localPlayerId);
     const [isHudOpen, setIsHudOpen] = useState(true)
 
     return (
@@ -114,7 +115,12 @@ function GameScreenHud({
 
                 <HudInfoBlock label="Ranking">
                     {gameOptions.rated ? (
-                        hideEloInHud ? (
+                        isSpectator ? (
+                            <React.Fragment>
+                                <div className="text-white">Rated Match</div>
+                                <div className="text-slate-300">Players will gain/lose ELO.</div>
+                            </React.Fragment>
+                        ) : hideEloInHud ? (
                             <React.Fragment>
                                 <div className="text-white">Rated Match</div>
                                 <div className="text-slate-300">Zen mode hides Elo in the HUD.</div>
