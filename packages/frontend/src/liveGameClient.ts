@@ -18,7 +18,7 @@ let socket: Socket<ServerToClientEvents, ClientToServerEvents> | null = null
 let shouldHandleDisconnect = true
 let suppressDisconnectToast = false
 
-let heartbeatMonitor: ReturnType<typeof window.setInterval> | null = null
+let heartbeatMonitor: number | null = null
 let heartbeatLastPingAt: number | null = null
 let heartbeatLastPongAt: number | null = null
 

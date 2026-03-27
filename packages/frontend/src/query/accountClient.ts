@@ -24,10 +24,6 @@ async function fetchAccountPreferences() {
     return await fetchJson<AccountPreferencesResponse>('/api/account/preferences')
 }
 
-async function fetchAccountStatistics() {
-    return await fetchJson<ProfileStatisticsResponse>('/api/account/statistics')
-}
-
 async function fetchProfileStatistics(profileId: string) {
     return await fetchJson<ProfileStatisticsResponse>(`/api/profiles/${encodeURIComponent(profileId)}/statistics`)
 }

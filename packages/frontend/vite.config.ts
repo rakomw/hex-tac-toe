@@ -4,7 +4,7 @@ import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { resolveVersionHash } from '../../build/resolveVersionHash'
 
-export default defineConfig(({ isSsrBuild }) => ({
+export default defineConfig(({ isSsrBuild, mode }) => ({
     assetsInclude: ['**/*.aac'],
 
     define: {
@@ -21,6 +21,14 @@ export default defineConfig(({ isSsrBuild }) => ({
             output: {
                 codeSplitting: !isSsrBuild,
                 chunkFileNames: "assets/chunk-[hash].js",
+            },
+            optimization: {
+                ...(mode === "development" ? {
+                    // See https://github.com/vitejs/vite/pull/21865
+                    inlineConst: false
+                } : {
+
+                })
             }
         }
     },
