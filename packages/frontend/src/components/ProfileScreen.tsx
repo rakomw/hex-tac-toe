@@ -30,6 +30,7 @@ import {
     formatWinSummary,
     formatWorldRank
 } from '../utils/profileStats'
+import { formatEloChange } from '../utils/elo'
 import PageCorpus from './PageCorpus'
 import React from 'react'
 import AccountPicture from './AccountPicture'
@@ -290,6 +291,8 @@ function RecentGamesSection({
                     {games.map((game) => {
                         const presentation = getRecentGamesPresentation(game, profileId)
                         const gamePath = buildFinishedGamePath(game.id, archiveView)
+                        const profilePlayer = game.players.find((player) => player.profileId === profileId)
+                        const profileEloChange = game.gameOptions.rated ? profilePlayer?.eloChange ?? null : null
 
                         return (
                             <Link
@@ -304,9 +307,14 @@ function RecentGamesSection({
                                         </div>
                                         <div className={`mt-1.5 text-lg font-bold sm:text-[1.45rem] ${presentation.titleClassName}`}>{presentation.label}</div>
                                         <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-slate-300 sm:text-xs">
-                                            <span className="rounded-full bg-slate-900/60 px-2.5 py-0.5">
-                                                {game.gameOptions.rated ? 'Rated' : 'Casual'}
-                                            </span>
+                                            {profileEloChange !== null && (
+                                                <span className={`rounded-full px-2.5 py-0.5 ${profileEloChange >= 0
+                                                    ? 'bg-emerald-400/12 text-emerald-200'
+                                                    : 'bg-rose-400/12 text-rose-200'
+                                                    }`}>
+                                                    ELO {formatEloChange(profileEloChange)}
+                                                </span>
+                                            )}
                                             <span className="rounded-full bg-slate-900/60 px-2.5 py-0.5">Moves: {game.moveCount}</span>
                                             <span className="rounded-full bg-slate-900/60 px-2.5 py-0.5">
                                                 Duration: {formatCompactDuration(game.gameResult?.durationMs ?? 0)}

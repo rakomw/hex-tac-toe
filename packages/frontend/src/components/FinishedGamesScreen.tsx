@@ -170,6 +170,13 @@ function FinishedGamesScreen({
                           </div>
                           <div className={`mt-1.5 text-lg font-bold sm:text-[1.45rem] ${presentation.titleClassName}`}>{presentation.label}</div>
                           <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-slate-300 sm:text-xs">
+                            <span className={`rounded-full px-2.5 py-0.5 ${game.gameOptions.rated
+                              ? 'bg-amber-300/15 text-amber-100'
+                              : 'bg-slate-900/60 text-slate-200'
+                              }`}
+                            >
+                              {game.gameOptions.rated ? 'Rated' : 'Unrated'}
+                            </span>
                             <span className="rounded-full bg-slate-900/60 px-2.5 py-0.5">Moves: {game.moveCount}</span>
                             <span className="rounded-full bg-slate-900/60 px-2.5 py-0.5">
                               {game.players.flatMap((player, index) => [

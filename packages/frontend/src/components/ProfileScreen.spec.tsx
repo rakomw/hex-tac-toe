@@ -301,6 +301,10 @@ test('matches the full profile statistics screen', async ({ mount, page }) => {
   await expect(component.getByRole('heading', { name: 'Last 10 Games' })).toBeVisible()
   await expect(component.getByRole('link', { name: /Won by six in a row/i })).toHaveAttribute('href', '/account/games/game-1')
   await expect(component.getByRole('link', { name: /Lost due to timeout/i })).toHaveAttribute('href', '/account/games/game-2')
+  await expect(component.getByText(/^Rated$/).first()).toBeVisible()
+  await expect(component.getByText(/^Unrated$/)).toBeVisible()
+  await expect(component.getByText(/^ELO \+12$/)).toBeVisible()
+  await expect(component.getByText(/^ELO -8$/)).toHaveCount(0)
 
   await expect(component).toHaveScreenshot('profile-screen-loaded.png', {
     animations: 'disabled',
