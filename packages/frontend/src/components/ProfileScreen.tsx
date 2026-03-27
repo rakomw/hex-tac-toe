@@ -18,7 +18,8 @@ import {
     formatCalendarDate,
     formatChartDate,
     formatDateTime,
-    formatRelativeTimeFrom
+    formatRelativeTimeFrom,
+    useIntlFormatProvider
 } from '../utils/dateTime'
 import { formatCompactDuration, formatDetailedDuration } from '../utils/duration'
 import { getPersonalResultLabel, type PersonalResultTone } from '../utils/finishedGames'
@@ -164,6 +165,7 @@ function LiveGameSection({
 }: Readonly<{
     liveGame: LobbyInfo
 }>) {
+    const intlFormatProvider = useIntlFormatProvider();
     return (
         <section className="rounded-[1.6rem] border border-emerald-300/20 bg-[linear-gradient(180deg,rgba(6,78,59,0.38),rgba(15,23,42,0.62))] p-5 shadow-[0_24px_80px_rgba(6,78,59,0.18)]">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -189,7 +191,7 @@ function LiveGameSection({
                     </div>
                     {liveGame.startedAt && (
                         <div className="mt-2 text-xs uppercase tracking-[0.18em] text-emerald-100/80">
-                            Started {formatDateTime(liveGame.startedAt)}
+                            Started {formatDateTime(intlFormatProvider, liveGame.startedAt)}
                         </div>
                     )}
                 </div>
@@ -257,6 +259,7 @@ function RecentGamesSection({
     errorMessage: string | null
     isPublicView: boolean
 }>) {
+    const intlFormatProvider = useIntlFormatProvider();
     const games = recentGames?.games ?? []
     const archiveView = isPublicView ? 'all' : 'mine'
 
@@ -327,7 +330,7 @@ function RecentGamesSection({
 
                                     <div className="text-[11px] text-slate-300 sm:text-right sm:text-xs">
                                         <div className="font-semibold text-white">
-                                            {formatDateTime(game.finishedAt ?? game.startedAt)}
+                                            {formatDateTime(intlFormatProvider, game.finishedAt ?? game.startedAt)}
                                         </div>
                                     </div>
                                 </div>
@@ -351,6 +354,7 @@ function EloHistoryChartSection({
     eloHistory: AccountEloHistory
     currentElo: number
 }>) {
+    const intlFormatProvider = useIntlFormatProvider();
     const ssrNow = useSsrCompatibleNow();
     const now = useMemo(() => ssrNow, [eloHistory]);
 
@@ -426,7 +430,7 @@ function EloHistoryChartSection({
                     <div className="text-[0.62rem] uppercase tracking-[0.24em] text-slate-500">Highest Rating</div>
                     <div className="mt-1 text-lg font-bold leading-none text-white">{highestPoint.elo}</div>
                     <div className="mt-1 text-xs text-slate-400">
-                        Reached {formatDateTime(highestPoint.timestamp)}
+                        Reached {formatDateTime(intlFormatProvider, highestPoint.timestamp)}
                     </div>
                 </div>
             </div>
@@ -441,7 +445,7 @@ function EloHistoryChartSection({
                             stroke="#94a3b8"
                             tickLine={false}
                             axisLine={false}
-                            tickFormatter={formatChartDate}
+                            tickFormatter={time => formatChartDate(intlFormatProvider, time)}
                         />
                         <YAxis
                             allowDecimals={false}
@@ -460,7 +464,7 @@ function EloHistoryChartSection({
                                 color: '#e2e8f0'
                             }}
                             formatter={(value) => [`${value} ELO`, 'Rating']}
-                            labelFormatter={(label) => formatDateTime(Number(label))}
+                            labelFormatter={(label) => formatDateTime(intlFormatProvider, Number(label))}
                         />
                         <Line
                             type="monotone"
@@ -491,6 +495,7 @@ function ProfileScreen({
     recentGamesErrorMessage,
     isPublicView
 }: Readonly<ProfileScreenProps>) {
+    const intlFormatProvider = useIntlFormatProvider();
     const now = useSsrCompatibleNow();
 
     const handleSignIn = async () => {
@@ -503,8 +508,8 @@ function ProfileScreen({
     }
 
     const isMissingPublicProfile = isPublicView && errorMessage === 'Profile not found.'
-    const memberSinceLabel = account ? formatCalendarDate(account.registeredAt) : null
-    const lastSeenLabel = account ? formatRelativeTimeFrom(account.lastActiveAt, now) : null
+    const memberSinceLabel = account ? formatCalendarDate(intlFormatProvider, account.registeredAt) : null
+    const lastSeenLabel = account ? formatRelativeTimeFrom(intlFormatProvider, account.lastActiveAt, now) : null
 
     return (
         <PageCorpus

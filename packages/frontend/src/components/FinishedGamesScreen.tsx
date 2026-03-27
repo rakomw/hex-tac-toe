@@ -1,6 +1,6 @@
 import type { FinishedGameSummary, FinishedGamesPage } from '@ih3t/shared'
 import type { FinishedGamesArchiveView } from '../query/queryDefinitions'
-import { formatDateTime } from '../utils/dateTime'
+import { formatDateTime, useIntlFormatProvider } from '../utils/dateTime'
 import { formatCompactDuration } from '../utils/duration'
 import {
   getNeutralResultLabel,
@@ -75,6 +75,7 @@ function FinishedGamesScreen({
   onOpenGame,
   onChangePage,
 }: Readonly<FinishedGamesScreenProps>) {
+  const intlFormatProvider = useIntlFormatProvider();
   const isOwnArchive = archiveView === 'mine'
   const games = archive?.games ?? []
   const pagination = archive?.pagination
@@ -193,7 +194,7 @@ function FinishedGamesScreen({
 
                         <div className="text-[11px] text-slate-300 sm:text-right sm:text-xs">
                           <div className="font-semibold text-white">
-                            {formatDateTime(game.finishedAt ?? game.startedAt)}
+                            {formatDateTime(intlFormatProvider, game.finishedAt ?? game.startedAt)}
                           </div>
                         </div>
                       </div>

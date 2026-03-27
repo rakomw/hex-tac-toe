@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { LobbyInfo, ShutdownState } from '@ih3t/shared'
-import { formatDateTime } from '../utils/dateTime'
+import { formatDateTime, useIntlFormatProvider } from '../utils/dateTime'
 import { formatCountdownDuration } from '../utils/duration'
 import { formatTimeControl } from '../utils/gameTimeControl'
 import { formatActiveSessionDuration, formatLobbyPlayers } from '../utils/lobby'
@@ -47,6 +47,8 @@ function renderConcurrentGamesSummary(maxConcurrentGames: string, currentConcurr
 }
 
 function ShutdownSummary({ shutdown }: { shutdown: ShutdownState | null }) {
+  const intlFormatProvider = useIntlFormatProvider();
+
   const [now, setNow] = useState(useSsrCompatibleNow())
 
   useEffect(() => {
@@ -77,10 +79,10 @@ function ShutdownSummary({ shutdown }: { shutdown: ShutdownState | null }) {
         {formatCountdownDuration(Math.max(0, shutdown.gracefulTimeout - now))}
       </div>
       <div className="mt-3 text-sm text-amber-50/90">
-        Goes down at {formatDateTime(shutdown.gracefulTimeout)}
+        Goes down at {formatDateTime(intlFormatProvider, shutdown.gracefulTimeout)}
       </div>
       <div className="mt-1 text-xs uppercase tracking-[0.18em] text-amber-100/75">
-        Scheduled {formatDateTime(shutdown.scheduledAt)}
+        Scheduled {formatDateTime(intlFormatProvider, shutdown.scheduledAt)}
       </div>
     </div>
   )
@@ -111,6 +113,7 @@ function AdminControlsScreen({
   onSendMessage,
   onTerminateGame,
 }: AdminControlsScreenProps) {
+  const intlFormatProvider = useIntlFormatProvider();
   const [now, setNow] = useState(useSsrCompatibleNow())
 
   useEffect(() => {
@@ -302,7 +305,7 @@ function AdminControlsScreen({
                         <div className="mt-1 text-sm text-slate-300">{formatLobbyPlayers(session.players, session.rated, 'Waiting for players')}</div>
                         {session.startedAt && (
                           <div className="mt-1 text-sm text-slate-400">
-                            Running for {formatActiveSessionDuration(session.startedAt, now)} • Started {formatDateTime(session.startedAt)}
+                            Running for {formatActiveSessionDuration(session.startedAt, now)} • Started {formatDateTime(intlFormatProvider, session.startedAt)}
                           </div>
                         )}
                       </div>

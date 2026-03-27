@@ -34,9 +34,17 @@ export function getRenderMode(): RenderMode {
         return "normal"
     }
 }
+
 export function useRenderMode(): RenderMode {
     const [status, setStatus] = useState<RenderMode>(getRenderMode);
-    useEffect(() => setStatus("normal"), []);
+    useEffect(() => {
+        if (status === "normal") {
+            /* no need to update */
+            return;
+        }
+
+        setStatus("normal");
+    }, []);
 
     return status;
 }

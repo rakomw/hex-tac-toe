@@ -1,13 +1,4 @@
 import type { ChangelogDay, ChangelogEntry, ChangelogEntryKind } from '@ih3t/shared'
-import { formatDateTime, formatUtcCalendarDate } from './dateTime'
-
-export function formatChangelogDate(value: string) {
-  return formatUtcCalendarDate(value)
-}
-
-export function formatChangelogGeneratedAt(value: string) {
-  return formatDateTime(new Date(value))
-}
 
 export function getLatestChangelogCommitAt(changelogDays: ChangelogDay[]) {
   return changelogDays.flatMap((day) => day.entries).reduce(

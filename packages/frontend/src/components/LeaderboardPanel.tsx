@@ -3,7 +3,7 @@ import type { Leaderboard, LeaderboardPlacement, LeaderboardPlayer } from '@ih3t
 import { Link } from 'react-router'
 import { useQueryAccount } from '../query/accountClient'
 import { useSsrCompatibleNow } from '../ssrState'
-import { formatDateTime } from '../utils/dateTime'
+import { formatDateTime, useIntlFormatProvider } from '../utils/dateTime'
 import { formatRefreshCountdown } from '../utils/duration'
 import { cn } from '../utils/cn'
 
@@ -201,6 +201,7 @@ export function LeaderboardRefreshIndicator({
   leaderboard: Leaderboard
   isRefreshing: boolean
 }>) {
+  const intlFormatProvider = useIntlFormatProvider();
   const [now, setNow] = useState(useSsrCompatibleNow())
 
   useEffect(() => {
@@ -236,7 +237,7 @@ export function LeaderboardRefreshIndicator({
         />
       </div>
       <div className="mt-3 text-sm text-emerald-50/85">
-        Last updated {formatDateTime(leaderboard.generatedAt)}. Next recalculation {formatDateTime(leaderboard.nextRefreshAt)}
+        Last updated {formatDateTime(intlFormatProvider, leaderboard.generatedAt)}. Next recalculation {formatDateTime(intlFormatProvider, leaderboard.nextRefreshAt)}
       </div>
     </div>
   )

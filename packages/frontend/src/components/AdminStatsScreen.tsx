@@ -16,7 +16,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts'
-import { formatChartDateTime, formatDateTime } from '../utils/dateTime'
+import { formatChartDateTime, formatDateTime, useIntlFormatProvider } from '../utils/dateTime'
 import { formatBucketSize, formatLongDuration } from '../utils/duration'
 import PageCorpus from './PageCorpus'
 
@@ -78,6 +78,7 @@ function LongestGameCard({
   value: string | null
   onOpenGame: (gameId: string) => void
 }) {
+  const intlFormatProvider = useIntlFormatProvider();
   return (
     <div className="rounded-[1.2rem] border border-white/10 bg-slate-950/45 p-3">
       <div className="text-[0.65rem] uppercase tracking-[0.22em] text-slate-500">{label}</div>
@@ -86,7 +87,7 @@ function LongestGameCard({
           <div className="mt-2 text-xl font-bold leading-tight text-white">{value}</div>
           <div className="mt-2 line-clamp-2 text-sm leading-5 text-slate-300">{game.players.join(' vs ') || game.sessionId}</div>
           <div className="mt-1 text-[0.68rem] uppercase tracking-[0.16em] text-slate-500">{game.sessionId}</div>
-          <div className="mt-1 text-xs text-slate-400">Finished {formatDateTime(game.finishedAt)}</div>
+          <div className="mt-1 text-xs text-slate-400">Finished {formatDateTime(intlFormatProvider, game.finishedAt)}</div>
           <button
             onClick={() => onOpenGame(game.gameId)}
             className="mt-3 rounded-full border border-sky-300/25 bg-sky-400/10 px-3 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-sky-100 transition hover:bg-sky-400/20"
@@ -108,11 +109,12 @@ function UserWindowCard({
   title: string
   windowStats: AdminUserStatsWindow
 }) {
+  const intlFormatProvider = useIntlFormatProvider();
   return (
     <section className="rounded-3xl border border-white/10 bg-white/6 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.28)]">
       <div className="text-[0.68rem] uppercase tracking-[0.3em] text-emerald-200/80">{title}</div>
       <div className="mt-1 text-xs leading-5 text-slate-400">
-        {formatDateTime(windowStats.startAt)} to {formatDateTime(windowStats.endAt)}
+        {formatDateTime(intlFormatProvider, windowStats.startAt)} to {formatDateTime(intlFormatProvider, windowStats.endAt)}
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <StatStripItem label="New Users" value={windowStats.newUsers} />
@@ -127,6 +129,7 @@ function ActiveGamesChartSection({
 }: {
   timeline: AdminActiveGamesTimeline
 }) {
+  const intlFormatProvider = useIntlFormatProvider();
   return (
     <section className="rounded-[1.6rem] border border-white/10 bg-white/6 p-4 shadow-[0_22px_70px_rgba(15,23,42,0.3)] sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -140,7 +143,7 @@ function ActiveGamesChartSection({
           </div>
         </div>
         <div className="text-xs leading-5 text-slate-400">
-          {formatDateTime(timeline.startAt)} to {formatDateTime(timeline.endAt)}
+          {formatDateTime(intlFormatProvider, timeline.startAt)} to {formatDateTime(intlFormatProvider, timeline.endAt)}
         </div>
       </div>
 
@@ -154,7 +157,7 @@ function ActiveGamesChartSection({
               stroke="#94a3b8"
               tickLine={false}
               axisLine={false}
-              tickFormatter={formatChartDateTime}
+              tickFormatter={time => formatChartDateTime(intlFormatProvider, time)}
             />
             <YAxis
               allowDecimals={false}
@@ -172,14 +175,14 @@ function ActiveGamesChartSection({
                 color: '#e2e8f0'
               }}
               formatter={(value) => [`${value} games`, 'Active']}
-              labelFormatter={(label) => formatDateTime(Number(label))}
+              labelFormatter={(label) => formatDateTime(intlFormatProvider, Number(label))}
             />
             <Brush
               dataKey="timestamp"
               height={28}
               stroke="#7dd3fc"
               travellerWidth={10}
-              tickFormatter={formatChartDateTime}
+              tickFormatter={time => formatChartDateTime(intlFormatProvider, time)}
               fill="rgba(15,23,42,0.92)"
             />
             <Line
@@ -206,13 +209,14 @@ function IntervalSection({
   windowStats: AdminStatsWindow
   onOpenGame: (gameId: string) => void
 }) {
+  const intlFormatProvider = useIntlFormatProvider();
   return (
     <section className="rounded-3xl border border-white/10 bg-white/6 p-4 shadow-[0_20px_60px_rgba(15,23,42,0.28)]">
       <div className="flex flex-col gap-2">
         <div>
           <div className="text-[0.68rem] uppercase tracking-[0.3em] text-sky-200/80">{title}</div>
           <div className="mt-1 text-xs leading-5 text-slate-400">
-            {formatDateTime(windowStats.startAt)} to {formatDateTime(windowStats.endAt)}
+            {formatDateTime(intlFormatProvider, windowStats.startAt)} to {formatDateTime(intlFormatProvider, windowStats.endAt)}
           </div>
         </div>
       </div>
@@ -250,6 +254,7 @@ function AdminStatsScreen({
   onRefresh,
   onOpenGame
 }: Readonly<AdminStatsScreenProps>) {
+  const intlFormatProvider = useIntlFormatProvider();
   return (
     <PageCorpus
       category={"Admin"}
@@ -258,7 +263,7 @@ function AdminStatsScreen({
         <>
           Live activity, traffic, and completed-game records across the main reporting windows.
           {stats && (
-            <span className="inline-block text-sm text-slate-400">Last updated {formatDateTime(stats.generatedAt)}</span>
+            <span className="inline-block text-sm text-slate-400">Last updated {formatDateTime(intlFormatProvider, stats.generatedAt)}</span>
           )}
         </>
       }

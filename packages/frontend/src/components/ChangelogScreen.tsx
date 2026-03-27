@@ -5,13 +5,11 @@ import { updateAccountPreferences } from '../query/accountClient'
 import {
   countBreakingChanges,
   countUnreadChangelogEntries,
-  formatChangelogDate,
-  formatChangelogGeneratedAt,
   getLatestChangelogCommitAt,
   isUnreadChangelogEntry,
   sortChangelogEntries
 } from '../utils/changelog'
-import { formatDateTime } from '../utils/dateTime'
+import { formatDateTime, formatUtcCalendarDate, useIntlFormatProvider } from '../utils/dateTime'
 import PageCorpus from './PageCorpus'
 
 const CHANGELOG_KIND_LABELS: Record<ChangelogEntryKind, string> = {
@@ -59,6 +57,7 @@ function ChangelogScreen({
   isPreferencesLoading,
   preferencesErrorMessage,
 }: Readonly<ChangelogScreenProps>) {
+  const intlFormatProvider = useIntlFormatProvider();
   const [isMarkingRead, setIsMarkingRead] = useState(false)
   const latestCommitAt = getLatestChangelogCommitAt(changelogDays)
   const changelogReadAt = preferences?.changelogReadAt ?? null
@@ -95,7 +94,7 @@ function ChangelogScreen({
     <PageCorpus
       category="Project History"
       title="Changelog"
-      description={`Generated from ${commitCount} commits in git history on ${formatChangelogGeneratedAt(generatedAt)}.${totalBreakingChangeCount > 0 ? ` ${totalBreakingChangeCount} breaking change${totalBreakingChangeCount === 1 ? '' : 's'} flagged.` : ''}`}
+      description={`Generated from ${commitCount} commits in git history on ${formatDateTime(intlFormatProvider, new Date(generatedAt))}.${totalBreakingChangeCount > 0 ? ` ${totalBreakingChangeCount} breaking change${totalBreakingChangeCount === 1 ? '' : 's'} flagged.` : ''}`}
     >
       <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex flex-col gap-4 overflow-auto overscroll-contain">
         {account ? (
@@ -118,7 +117,7 @@ function ChangelogScreen({
                   <p className="mt-3 max-w-3xl text-sm leading-6 text-amber-50/85 sm:text-base">
                     {changelogReadAt === null
                       ? 'No changelog visit has been recorded yet, so all current entries are marked as new.'
-                      : `Your last read marker was saved on ${formatDateTime(changelogReadAt)}.`}
+                      : `Your last read marker was saved on ${formatDateTime(intlFormatProvider, changelogReadAt)}.`}
                   </p>
                 </div>
 
@@ -154,7 +153,7 @@ function ChangelogScreen({
                 <div>
                   <p className="text-xs uppercase tracking-[0.3em] text-amber-200/75">{day.date}</p>
                   <h2 className="mt-2 text-xl font-black uppercase tracking-[0.08em] text-white sm:text-2xl">
-                    {formatChangelogDate(day.date)}
+                    {formatUtcCalendarDate(intlFormatProvider, day.date)}
                   </h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">

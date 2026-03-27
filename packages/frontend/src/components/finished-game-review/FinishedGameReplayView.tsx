@@ -9,7 +9,7 @@ import {
 } from '@ih3t/shared'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { formatDateTimeWithSeconds } from '../../utils/dateTime'
+import { formatDateTimeWithSeconds, useIntlFormatProvider } from '../../utils/dateTime'
 import { formatMinutesSeconds } from '../../utils/duration'
 import { formatEloChange } from '../../utils/elo'
 import { getPlayerLabel, getPlayerTileColor } from '../../utils/gameBoard'
@@ -184,6 +184,7 @@ function FinishedGameReplayView({
   showTilePieceMarkers,
   onRetry
 }: Readonly<FinishedGameReplayViewProps>) {
+  const intlFormatProvider = useIntlFormatProvider();
   const navigate = useNavigate()
   const [visibleMoveCount, setVisibleMoveCount] = useState(game.moves.length)
   const [isAutoPlaying, setIsAutoPlaying] = useState(false)
@@ -358,8 +359,8 @@ function FinishedGameReplayView({
                     </div>
                     <div className="mt-1 wrap-break-word text-xs text-slate-300 sm:text-sm">
                       {activeMove
-                        ? `${formatDateTimeWithSeconds(activeMove.timestamp)} • +${formatMinutesSeconds(activeMove.timestamp - game.startedAt)}`
-                        : `Started ${formatDateTimeWithSeconds(game.startedAt)}`}
+                        ? `${formatDateTimeWithSeconds(intlFormatProvider, activeMove.timestamp)} • +${formatMinutesSeconds(activeMove.timestamp - game.startedAt)}`
+                        : `Started ${formatDateTimeWithSeconds(intlFormatProvider, game.startedAt)}`}
                     </div>
                   </div>
 
@@ -437,7 +438,7 @@ function FinishedGameReplayView({
               <div>
                 <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">Finished</div>
                 <div className="mt-1 text-sm text-white">
-                  {formatDateTimeWithSeconds(game.finishedAt ?? game.startedAt)}
+                  {formatDateTimeWithSeconds(intlFormatProvider, game.finishedAt ?? game.startedAt)}
                 </div>
                 <div className="mt-1 text-sm text-white">
                   Duration {formatMinutesSeconds(gameResult?.durationMs ?? 0)}
@@ -565,7 +566,7 @@ function FinishedGameReplayView({
                       {getPlayerLabel(game.players, move.playerId)} placed at ({move.x}, {move.y})
                     </div>
                     <div className="mt-1 wrap-break-word text-sm text-slate-300">
-                      {formatDateTimeWithSeconds(move.timestamp)} • +{formatMinutesSeconds(move.timestamp - game.startedAt)}
+                      {formatDateTimeWithSeconds(intlFormatProvider, move.timestamp)} • +{formatMinutesSeconds(move.timestamp - game.startedAt)}
                     </div>
                   </button>
                 )
