@@ -172,7 +172,12 @@ export function startLiveGameClient() {
     })
 
     socket.on('lobby-updated', (lobby) => {
-        const lobbies: LobbyInfo[] = queryClient.getQueryData(queryKeys.availableSessions) ?? [];
+        const lobbies: LobbyInfo[] | undefined = queryClient.getQueryData(queryKeys.availableSessions);
+        if (!lobbies) {
+            /* The lobbies query does not exist. No need to update the (non existing) data. */
+            return;
+        }
+
         const newLobbies = lobbies.filter(entry => entry.id !== lobby.id);
         newLobbies.push(lobby);
 
@@ -183,7 +188,12 @@ export function startLiveGameClient() {
     })
 
     socket.on('lobby-removed', ({ id }) => {
-        const lobbies: LobbyInfo[] = queryClient.getQueryData(queryKeys.availableSessions) ?? [];
+        const lobbies: LobbyInfo[] | undefined = queryClient.getQueryData(queryKeys.availableSessions);
+        if (!lobbies) {
+            /* The lobbies query does not exist. No need to update the (non existing) data. */
+            return;
+        }
+
         queryClient.setQueryData(
             queryKeys.availableSessions,
             sortLobbySessions(lobbies.filter(lobby => lobby.id !== id))
@@ -369,3 +379,6 @@ if (typeof window !== "undefined") {
      */
     startHeartbeatMonitor()
 }
+
+/* @ts-ignore */
+window.queryClient = queryClient

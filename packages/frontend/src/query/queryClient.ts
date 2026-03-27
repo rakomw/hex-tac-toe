@@ -9,6 +9,7 @@ export function createQueryClient() {
                 refetchOnReconnect: false,
 
                 retry: false,
+                gcTime: 120_000,
             },
         }
     })
